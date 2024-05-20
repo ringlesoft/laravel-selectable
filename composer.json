@@ -1,7 +1,7 @@
 {
     "name": "ringlesoft/laravel-selectable",
-    "description": "",
-    "type": "laravel-package",A package to populate select options from laravel collections.
+    "description": "A package to populate select options from laravel collections.",
+    "type": "laravel-package",
     "homepage": "https://ringlesoft.com/packages/laravel-selectable",
     "license": "MIT",
     "keywords": [
