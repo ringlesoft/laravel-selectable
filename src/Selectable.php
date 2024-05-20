@@ -7,55 +7,89 @@ use Illuminate\Support\Collection;
 class Selectable
 {
     private Collection $_collection;
-    public function __construct(Collection $collection)
+    private string $_value;
+    private string $_text;
+    private mixed $_selected = null;
+
+    public function __construct(Collection $collection, string|null $text = null, string|null $value = null, mixed $selected = null)
     {
         $this->_collection  = $collection;
+        $this->_text = $text ?? 'name';
+        $this->_value = $value ?? 'name';
+        $this->_selected = $selected ?? null;
     }
 
 
     /**
-     * @param Collection $collection
-     * @param string|null $text
-     * @param string|null $value
-     * @param null $selected
+     * Generate select options from a Collection instance
+     * @param Collection $collection the collection instance to be used
+     * @param string|null $text the field to be used as the main text of the option (default is 'name')
+     * @param string|null $value the field to be used as value of the option (default is 'id')
+     * @param mixed $selected selected value/values
      * @return string
      */
     public static function collectionToSelectOptions (
         Collection $collection,
         string|null $text = null,
         string|null $value = null,
-        $selected = null,
+        mixed $selected = null,
     ): string
     {
+        return (new self($collection, $text, $value, $selected))->toSelectOptions();
+    }
+
+    /**
+     * Generate select options from this instance
+     * @return string
+     */
+    public function toSelectOptions(): string
+    {
+
         $html = "";
-        $collection->each(static function ($item) use (&$html, $value, $selected, $text) {
-            $html .= '<option value="'. (($item->{$value ?? 'id'}) ?? '') .'"';
-            if(is_array($selected)) {
-                foreach ($selected as $selectedItem) {
+        foreach ($this->_collection as $index => $item) {
+            $lineText  = $item->{$this->_text} ?? "N/A";
+            $lineValue = $item->{$this->_value} ?? "";
+            $html .= "<option value=\"{$lineValue}\"";
+            if(is_array($this->_selected)) {
+                foreach ($this->_selected as $selectedItem) {
                     if(is_object($selectedItem)) {
-                        if((string) $selectedItem->{$value ?? 'id'} === (string) $item->{$value ?? 'id'}) {
+                        if((string) $selectedItem->{$this->_value} === (string) $lineValue) {
                             $html .= " selected";
                         }
                     } else if(is_array($selectedItem)) {
-                        if(array_key_exists(($value ?? 'id'), $selectedItem) && (string)$selectedItem[$value ?? 'id'] === (string)$item->{$value ?? 'id'}) {
+                        if(array_key_exists($this->_value, $selectedItem) && (string)$selectedItem[$this->_value] === (string) $lineValue) {
                             $html .= " selected";
                         }
-                    } else if((string) $selectedItem === (string) $item->{$value ?? 'id'}) {
+                    } else if((string) $selectedItem === (string) $lineValue) {
                         $html .= " selected";
                     }
                 }
-            }  else if ((string) $selected === (string) $value) {
+            } else if ((string) $this->_selected === (string) $lineValue) {
                 $html .= " selected";
             }
-            $html .= ">". (($item->{$text ?? 'name'}) ?? 'N/A')."</option>";
-        });
+            $html .= ">{$lineText}</option>";
+        }
         return $html;
     }
 
-    // toSelectable
-    // toCollection
+    /**
+     * Convert a Selectable instance back to a Collection instance
+     * @return Collection
+     */
+    public function toCollection(): Collection
+    {
+        return $this->_collection;
+    }
+
+
+    /**
+     * Create Selectable instance from a collection instance
+     * @param Collection $collection
+     * @return self
+     */
     public static function fromCollection(Collection $collection): self
     {
         return new self($collection);
     }
+
 }
