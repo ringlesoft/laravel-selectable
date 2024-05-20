@@ -189,7 +189,7 @@ class Selectable
 
     public function withDisabled(mixed $disabled): self
     {
-        $this->_disabled = null;
+        $this->_disabled = $disabled;
         return $this;
     }
 
