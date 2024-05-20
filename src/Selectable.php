@@ -2,17 +2,26 @@
 
 namespace RingleSoft\LaravelSelectable;
 
+use Closure;
 use Illuminate\Support\Collection;
+use ReflectionFunction;
 
 class Selectable
 {
     private Collection $_collection;
-    private string $_value;
-    private string $_label;
+    private string|Closure $_value;
+    private string|Closure $_label;
     private mixed $_selected = null;
     private mixed $_disabled = null;
 
-    public function __construct(Collection $collection, string|null $label = null, string|null $value = null, mixed $selected = null, mixed $disabled = null)
+    /**
+     * @param Collection $collection
+     * @param string|Closure|null $label
+     * @param string|Closure|null $value
+     * @param mixed|null $selected
+     * @param mixed|null $disabled
+     */
+    public function __construct(Collection $collection, string|Closure|null $label = null, string|Closure|null $value = null, mixed $selected = null, mixed $disabled = null)
     {
         $this->_collection = $collection;
         $this->_label = $label ?? 'name';
@@ -49,20 +58,18 @@ class Selectable
      */
     public function toSelectOptions(): string
     {
-
-
         $html = "";
         foreach ($this->_collection as $index => $item) {
-            $lineLabel = $item->{$this->_label} ?? "N/A";
-            $lineValue = $item->{$this->_value} ?? "";
-            $html .= "<option value=\"{$lineValue}\"";
-            if($this->_shouldSelect($item)){
+            $optionLabel = ($this->_label instanceof Closure) ? call_user_func($this->_label, $item, $index) : $item->{$this->_label} ?? "N/A";
+            $optionValue = ($this->_value instanceof Closure) ? call_user_func($this->_value, $item, $index) : $item->{$this->_value} ?? "";
+            $html .= "<option value=\"{$optionValue}\"";
+            if ($this->_shouldSelect($item, $index)) {
                 $html .= " selected";
             }
-            if($this->_shouldDisable($item)){
+            if ($this->_shouldDisable($item, $index)) {
                 $html .= " disabled";
             }
-            $html .= " >{$lineLabel}</option>";
+            $html .= " >{$optionLabel}</option>";
         }
         return $html;
     }
@@ -70,34 +77,35 @@ class Selectable
     /**
      * Check if the item should be selected
      * @param object $item
+     * @param int|null $index
      * @return bool
      */
-    private function _shouldSelect(object $item): bool
+    private function _shouldSelect(object $item, int|null $index = null): bool
     {
-        $lineValue = $item->{$this->_value} ?? "";
-        if (is_callable($this->_selected)) {
+        $optionValue = ($this->_value instanceof Closure) ? call_user_func($this->_value, $item, $index) : $item->{$this->_value} ?? "";
+        if ($this->_selected instanceof Closure) {
             if (call_user_func($this->_selected, $item) === true) {
                 return true;
             }
-        } else if(is_object($this->_selected)){
-            if((string)$this->_selected->{$this->_value} === (string)$lineValue){
+        } else if (is_object($this->_selected)) {
+            if ((string)$this->_selected->{$this->_value} === (string)$optionValue) {
                 return true;
             }
         } else if (is_array($this->_selected)) {
             foreach ($this->_selected as $selectedItem) {
                 if (is_object($selectedItem)) {
-                    if ((string)$selectedItem->{$this->_value} === (string)$lineValue) {
+                    if ((string)$selectedItem->{$this->_value} === (string)$optionValue) {
                         return true;
                     }
                 } else if (is_array($selectedItem)) {
-                    if (array_key_exists($this->_value, $selectedItem) && (string)$selectedItem[$this->_value] === (string)$lineValue) {
+                    if (array_key_exists($this->_value, $selectedItem) && (string)$selectedItem[$this->_value] === (string)$optionValue) {
                         return true;
                     }
-                } else if ((string)$selectedItem === (string)$lineValue) {
+                } else if ((string)$selectedItem === (string)$optionValue) {
                     return true;
                 }
             }
-        } else if ((string)$this->_selected === (string)$lineValue) {
+        } else if ((string)$this->_selected === (string)$optionValue) {
             return true;
         }
         return false;
@@ -106,17 +114,18 @@ class Selectable
     /**
      * Check if the item should be selected
      * @param object $item
+     * @param int|null $index
      * @return bool
      */
-    private function _shouldDisable(object $item): bool
+    private function _shouldDisable(object $item, int|null $index = null): bool
     {
         $lineValue = $item->{$this->_value} ?? "";
         if (is_callable($this->_disabled)) {
             if (call_user_func($this->_disabled, $item) === true) {
                 return true;
             }
-        } else if(is_object($this->_disabled)){
-            if((string)$this->_disabled->{$this->_value} === (string)$lineValue){
+        } else if (is_object($this->_disabled)) {
+            if ((string)$this->_disabled->{$this->_value} === (string)$lineValue) {
                 return true;
             }
         } else if (is_array($this->_disabled)) {
@@ -133,7 +142,7 @@ class Selectable
                     return true;
                 }
             }
-        } else if ((string) $this->_disabled === (string) $lineValue) {
+        } else if ((string)$this->_disabled === (string)$lineValue) {
             return true;
         }
         return false;
@@ -145,12 +154,12 @@ class Selectable
      */
     public function toSelectItems(): Collection
     {
-        return $this->_collection->map(function ($item) {
+        return $this->_collection->map(function ($item, $index) {
             return [
                 'value' => $item->{$this->_value} ?? "",
-                'label' => $item->{$this->_label},
-                'isSelected' => $this->_shouldSelect($item),
-                'isDisabled' => $this->_shouldDisable($item),
+                'label' => $index,
+                'isSelected' => $this->_shouldSelect($item, $index),
+                'isDisabled' => $this->_shouldDisable($item, $index),
             ];
         });
     }
@@ -158,20 +167,20 @@ class Selectable
     //// Builders
 
     /**
-     * @param string $label name of the field to be used as label
+     * @param string|Closure $label name of the field to be used as label
      * @return $this
      */
-    public function withLabel(string $label): self
+    public function withLabel(string|Closure $label): self
     {
         $this->_label = $label;
         return $this;
     }
 
     /**
-     * @param string $value name of the field to be used as value
+     * @param string|Closure $value name of the field to be used as value
      * @return $this
      */
-    public function withValue(string $value): self
+    public function withValue(string|Closure $value): self
     {
         $this->_value = $value;
         return $this;

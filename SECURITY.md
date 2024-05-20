@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-The following versions of laravel process approval package are
+The following versions of laravel selectable package are
 currently being supported with security updates.
 
 | Version | Supported          |
@@ -11,7 +11,7 @@ currently being supported with security updates.
 
 ## Reporting a Vulnerability
 
-We take the security of the Laravel Process Approval package seriously. If you have discovered a vulnerability, we appreciate your assistance in disclosing it responsibly. This ensures that we can address and resolve the issue promptly to maintain the security of our users.
+We take the security of the Laravel Selectable package seriously. If you have discovered a vulnerability, we appreciate your assistance in disclosing it responsibly. This ensures that we can address and resolve the issue promptly to maintain the security of our users.
 
 ### Reporting Process
 To report a vulnerability, please follow these steps:
@@ -29,7 +29,7 @@ We strive to acknowledge all vulnerability reports promptly. Our team will revie
 
 ### Vulnerability Handling
 #### Accepted Vulnerabilities
-If the reported vulnerability is accepted, we will work on a fix and release a new version of the Laravel Process Approval package. We will credit you for the responsible disclosure unless you prefer to remain anonymous.
+If the reported vulnerability is accepted, we will work on a fix and release a new version of the Laravel Selectable package. We will credit you for the responsible disclosure unless you prefer to remain anonymous.
 
 #### Declined Vulnerabilities
 If the reported vulnerability is deemed not to be a valid issue, we will provide a detailed explanation of our findings. You can appeal our decision if you believe there has been a misunderstanding.
@@ -40,4 +40,4 @@ We understand the sensitivity of security-related information. We will handle al
 ### Responsible Disclosure
 We appreciate your responsible disclosure of security vulnerabilities. We encourage you to avoid publicizing the vulnerability until we have had an opportunity to address it. We will keep you informed of the progress and coordinate the public disclosure timeline.
 
-Thank you for helping us keep Laravel Process Approval secure for everyone. Your efforts contribute to the safety and well-being of our user community.
+Thank you for helping us keep Laravel Selectable secure for everyone. Your efforts contribute to the safety and well-being of our user community.
