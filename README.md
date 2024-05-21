@@ -145,7 +145,7 @@ This will convert the collection of users into an array of selectable items, whi
 Single Page Applications (SPAs).
 
 #### Structure of Selectable Items
-```json
+```php
     [
         [
             'label' => 'User Name',
