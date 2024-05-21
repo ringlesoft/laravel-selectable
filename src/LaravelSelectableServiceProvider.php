@@ -2,6 +2,7 @@
 
 namespace RingleSoft\LaravelSelectable;
 
+use Closure;
 use Illuminate\Support\Collection;
 use Illuminate\Support\ServiceProvider;
 
@@ -18,8 +19,8 @@ class LaravelSelectableServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(
             __DIR__ . '/../config/laravel_selectable.php', 'laravel_selectable'
         );
-        Collection::macro('toSelectOptions', function ( $text = null, $value = null, $selected = null) {
-            return Selectable::collectionToSelectOptions($this, $text, $value, $selected);
+        Collection::macro('toSelectOptions', function ( string|Closure|null $label = null, string|Closure|null $value = null, mixed $selected = null) {
+            return Selectable::collectionToSelectOptions($this, $label, $value, $selected);
         });
         Collection::macro('toSelectable', function () {
             return Selectable::fromCollection($this);
