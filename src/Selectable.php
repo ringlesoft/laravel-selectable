@@ -106,6 +106,12 @@ class Selectable
         return false;
     }
 
+    /**
+     * Prepare data attributes
+     * @param mixed $item
+     * @param int|null $index
+     * @return array
+     */
     private function _getDataAttributes(mixed $item, int|null $index = null): array
     {
         $dataAttributes = [];
@@ -117,6 +123,11 @@ class Selectable
         return $dataAttributes;
     }
 
+    /**
+     * Generate select options from a Collection instance
+     * @param Collection $collection
+     * @return string
+     */
     private function _generateOptions(Collection $collection): string
     {
         $html = "";
@@ -152,18 +163,18 @@ class Selectable
     /**
      * Generate select options from a Collection instance
      * @param Collection $collection the collection instance to be used
-     * @param string|null $label the field to be used as the main text of the option (default is 'name')
-     * @param string|null $value the field to be used as value of the option (default is 'id')
+     * @param string|Closure|null $label the field to be used as the label for the option (default is 'name')
+     * @param string|Closure|null $value the field to be used as value of the option (default is 'id')
      * @param mixed $selected selected value/values
      * @param mixed|null $disabled
      * @return string
      */
     public static function collectionToSelectOptions(
-        Collection  $collection,
+        Collection          $collection,
         string|Closure|null $label = null,
         string|Closure|null $value = null,
-        mixed       $selected = null,
-        mixed       $disabled = null,
+        mixed               $selected = null,
+        mixed               $disabled = null,
     ): string
     {
         return (new self($collection, $label, $value, $selected, $disabled))->toSelectOptions();
@@ -277,14 +288,26 @@ class Selectable
         return $this->_collection;
     }
 
+    /**
+     * Call a method on the collection
+     * @param string $name
+     * @param array $arguments
+     * @return $this
+     */
     public function __call(string $name, array $arguments)
     {
         $allowedMethods = [
-            'groupBy', 'add', 'zip', 'unique', 'range',
+            'groupBy', 'add', 'zip', 'unique', 'range', 'merge',
             'diff', 'diffUsing', 'diffAssoc', 'diffAssocUsing',
-            'diffKeys', 'diffKeysUsing', 'forget'
+            'diffKeys', 'diffKeysUsing', 'forget', 'merge', 'mergeRecursive', 'combine',
+            'union', 'nth', 'only', 'select', 'prepend', 'push', 'concat', 'put', 'random',
+            'replace', 'replaceRecursive', 'reverse', 'shuffle', 'sliding', 'skip',
+            'skipUntil', 'skipWhile', 'slice', 'split', 'splitIn', 'chunk', 'chunkWhile',
+            'sort', 'sortDesc', 'sortBy', 'sortByMany', 'sortByDesc', 'sortKeys',
+            'sortKeysDesc', 'sortKeysUsing', 'splice', 'take', 'takeUntil', 'takeWhile',
+            'transform', 'dot', 'undot', 'unique', 'values', 'zip', 'pad', 'getIterator',
+            'countBy', 'add', 'toBase',
         ];
-
         if (in_array($name, $allowedMethods) && method_exists($this->_collection, $name)) {
             $res = $this->_collection->{$name}(...$arguments);
             if ($res instanceof Collection) {
