@@ -4,7 +4,6 @@ namespace RingleSoft\LaravelSelectable;
 
 use Closure;
 use Illuminate\Support\Collection;
-use ReflectionFunction;
 
 class Selectable
 {
@@ -13,6 +12,8 @@ class Selectable
     private string|Closure $_label;
     private mixed $_selected = null;
     private mixed $_disabled = null;
+    private array $_dataAttributes = [];
+    private array $_classes = [];
 
     /**
      * @param Collection $collection
@@ -30,49 +31,6 @@ class Selectable
         $this->_disabled = $disabled ?? null;
     }
 
-
-    /**
-     * Generate select options from a Collection instance
-     * @param Collection $collection the collection instance to be used
-     * @param string|null $label the field to be used as the main text of the option (default is 'name')
-     * @param string|null $value the field to be used as value of the option (default is 'id')
-     * @param mixed $selected selected value/values
-     * @param mixed|null $disabled
-     * @return string
-     */
-    public static function collectionToSelectOptions(
-        Collection  $collection,
-        string|null $label = null,
-        string|null $value = null,
-        mixed       $selected = null,
-        mixed       $disabled = null,
-    ): string
-    {
-        return (new self($collection, $label, $value, $selected, $disabled))->toSelectOptions();
-    }
-
-
-    /**
-     * Generate select options from this instance
-     * @return string
-     */
-    public function toSelectOptions(): string
-    {
-        $html = "";
-        foreach ($this->_collection as $index => $item) {
-            $optionLabel = ($this->_label instanceof Closure) ? call_user_func($this->_label, $item, $index) : $item->{$this->_label} ?? "N/A";
-            $optionValue = ($this->_value instanceof Closure) ? call_user_func($this->_value, $item, $index) : $item->{$this->_value} ?? "";
-            $html .= "<option value=\"{$optionValue}\"";
-            if ($this->_shouldSelect($item, $index)) {
-                $html .= " selected";
-            }
-            if ($this->_shouldDisable($item, $index)) {
-                $html .= " disabled";
-            }
-            $html .= " >{$optionLabel}</option>";
-        }
-        return $html;
-    }
 
     /**
      * Check if the item should be selected
@@ -149,7 +107,100 @@ class Selectable
     }
 
     /**
-     * Return a collection of selectable items (for use in spa components)
+     * Prepare data attributes
+     * @param mixed $item
+     * @param int|null $index
+     * @return array
+     */
+    private function _getDataAttributes(mixed $item, int|null $index = null): array
+    {
+        $dataAttributes = [];
+        if (count($this->_dataAttributes) > 0) {
+            foreach ($this->_dataAttributes as $attribute => $value) {
+                $dataAttributes[$attribute] = ($value instanceof Closure) ? $value($item) : ($item->{$value} ?? '');
+            }
+        }
+        return $dataAttributes;
+    }
+
+    /**
+     * Generate select options from a Collection instance
+     * @param Collection $collection
+     * @return string
+     */
+    private function _generateOptions(Collection $collection): string
+    {
+        $html = "";
+        foreach ($collection as $index => $item) {
+            if (($item instanceof Collection)) { // Grouped options
+                $html .= "<optgroup label=\"{$index}\">";
+                $html .= $this->_generateOptions($item);
+                $html .= "</optgroup>";
+            } else {
+                $optionLabel = ($this->_label instanceof Closure) ? call_user_func($this->_label, $item, $index) : $item->{$this->_label} ?? "N/A";
+                $optionValue = ($this->_value instanceof Closure) ? call_user_func($this->_value, $item, $index) : $item->{$this->_value} ?? "";
+                $html .= "<option value=\"{$optionValue}\"";
+                if ($this->_shouldSelect($item, $index)) {
+                    $html .= " selected";
+                }
+                if ($this->_shouldDisable($item, $index)) {
+                    $html .= " disabled";
+                }
+                if (count($this->_dataAttributes) > 0) {
+                    foreach ($this->_getDataAttributes($item, $index) as $key => $value) {
+                        $html .= " data-{$key}=\"{$value}\"";
+                    }
+                }
+                if (count($this->_classes) > 0) {
+                    $html .= " class=\"" . (implode(' ', $this->_classes)) . "\"";
+                }
+                $html .= " >{$optionLabel}</option>";
+            }
+        }
+        return $html;
+    }
+
+    /**
+     * Generate select options from a Collection instance
+     * @param Collection $collection the collection instance to be used
+     * @param string|Closure|null $label the field to be used as the label for the option (default is 'name')
+     * @param string|Closure|null $value the field to be used as value of the option (default is 'id')
+     * @param mixed $selected selected value/values
+     * @param mixed|null $disabled
+     * @return string
+     */
+    public static function collectionToSelectOptions(
+        Collection          $collection,
+        string|Closure|null $label = null,
+        string|Closure|null $value = null,
+        mixed               $selected = null,
+        mixed               $disabled = null,
+    ): string
+    {
+        return (new self($collection, $label, $value, $selected, $disabled))->toSelectOptions();
+    }
+
+    /**
+     * Create Selectable instance from a collection instance
+     * @param Collection $collection
+     * @return self
+     */
+    public static function fromCollection(Collection $collection): self
+    {
+        return new self($collection);
+    }
+
+    /**
+     * Generate select options from this instance
+     * @return string
+     */
+    public function toSelectOptions(): string
+    {
+        return $this->_generateOptions($this->_collection);
+    }
+
+    /**
+     * Return a collection of selectable items
      * @return Collection
      */
     public function toSelectItems(): Collection
@@ -160,13 +211,14 @@ class Selectable
                 'label' => $index,
                 'isSelected' => $this->_shouldSelect($item, $index),
                 'isDisabled' => $this->_shouldDisable($item, $index),
+                'data' => $this->_getDataAttributes($item, $index),
+                'classes' => $this->_classes
             ];
         });
     }
 
-    //// Builders
-
     /**
+     * Specify the label for the selectable items
      * @param string|Closure $label name of the field to be used as label
      * @return $this
      */
@@ -177,6 +229,7 @@ class Selectable
     }
 
     /**
+     * Specify the value for the selectable items
      * @param string|Closure $value name of the field to be used as value
      * @return $this
      */
@@ -187,6 +240,7 @@ class Selectable
     }
 
     /**
+     * Specify the selected values for the selectable items
      * @param mixed $selected
      * @return $this
      */
@@ -196,9 +250,32 @@ class Selectable
         return $this;
     }
 
+    /**
+     * Specify the disabled values for the selectable items
+     * @param mixed $disabled
+     * @return $this
+     */
     public function withDisabled(mixed $disabled): self
     {
         $this->_disabled = $disabled;
+        return $this;
+    }
+
+    /**
+     * Specify a data attribute for the selectable items
+     * @param string $attribute
+     * @param string|Closure $value
+     * @return $this
+     */
+    public function withDataAttribute(string $attribute, string|Closure $value): self
+    {
+        $this->_dataAttributes[$attribute] = $value;
+        return $this;
+    }
+
+    public function withClass(string $class): self
+    {
+        $this->_classes = array_unique([...$this->_classes, ...explode(' ', $class)]);
         return $this;
     }
 
@@ -211,15 +288,33 @@ class Selectable
         return $this->_collection;
     }
 
-
     /**
-     * Create Selectable instance from a collection instance
-     * @param Collection $collection
-     * @return self
+     * Call a method on the collection
+     * @param string $name
+     * @param array $arguments
+     * @return $this
      */
-    public static function fromCollection(Collection $collection): self
+    public function __call(string $name, array $arguments)
     {
-        return new self($collection);
+        $allowedMethods = [
+            'groupBy', 'add', 'zip', 'unique', 'range', 'merge',
+            'diff', 'diffUsing', 'diffAssoc', 'diffAssocUsing',
+            'diffKeys', 'diffKeysUsing', 'forget', 'merge', 'mergeRecursive', 'combine',
+            'union', 'nth', 'only', 'select', 'prepend', 'push', 'concat', 'put', 'random',
+            'replace', 'replaceRecursive', 'reverse', 'shuffle', 'sliding', 'skip',
+            'skipUntil', 'skipWhile', 'slice', 'split', 'splitIn', 'chunk', 'chunkWhile',
+            'sort', 'sortDesc', 'sortBy', 'sortByMany', 'sortByDesc', 'sortKeys',
+            'sortKeysDesc', 'sortKeysUsing', 'splice', 'take', 'takeUntil', 'takeWhile',
+            'transform', 'dot', 'undot', 'unique', 'values', 'zip', 'pad', 'getIterator',
+            'countBy', 'add', 'toBase',
+        ];
+        if (in_array($name, $allowedMethods) && method_exists($this->_collection, $name)) {
+            $res = $this->_collection->{$name}(...$arguments);
+            if ($res instanceof Collection) {
+                $this->_collection = $res;
+            }
+        }
+        return $this;
     }
 
 }
