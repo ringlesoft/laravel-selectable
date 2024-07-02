@@ -16,14 +16,15 @@ class LaravelSelectableServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->publishItems();
+
         $this->mergeConfigFrom(
             __DIR__ . '/../config/laravel_selectable.php', 'laravel_selectable'
         );
         Collection::macro('toSelectOptions', function (
             string|Closure|null $label = null,
             string|Closure|null $value = null,
-            mixed $selected = null,
-            mixed $disabled = null
+            mixed               $selected = null,
+            mixed               $disabled = null
         ) {
             return Selectable::collectionToSelectOptions($this, $label, $value, $selected, $disabled);
         });
@@ -42,8 +43,11 @@ class LaravelSelectableServiceProvider extends ServiceProvider
         ], 'laravel-selectable-config');
 
         $this->publishes([
-            __DIR__ . '/../resources/views' => resource_path('views/vendor/ringlesoft/process_approval'),
+            __DIR__ . '/../resources/views' => resource_path('views/vendor/ringlesoft/laravel_selectable'),
         ], 'laravel-selectable-views');
 
+        $this->publishes([
+            __DIR__ . '/../ide-helper/Collection.php' => base_path('_ide_helper_laravel_selectable.php'),
+        ], 'ide-helper');
     }
 }
