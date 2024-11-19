@@ -44,7 +44,14 @@ class Selectable
             return (bool)call_user_func($this->_selected, $item, $index);
         }
 
-        $optionValue = ($this->_value instanceof Closure) ? call_user_func($this->_value, $item, $index) : (is_object($item) ? ($item->{$this->_value} ?? "") : $item);
+        if($this->_value instanceof Closure) {
+            $optionValue = call_user_func($this->_value, $item, $index);
+        } else {
+            $optionValue = (is_object($item) ? ($item->{$this->_value} ?? "") : $item);
+            if(is_array($item)) {
+                $optionValue = $item[$this->_value] ?? reset($item);
+            }
+        }
         if (is_object($this->_selected)) {
             return ((string)$this->_selected->{$this->_value} === (string)$optionValue);
         }
@@ -83,6 +90,9 @@ class Selectable
             $lineValue = call_user_func($this->_value, $item, $index);
         } else {
             $lineValue = (is_object($item) ? ($item->{$this->_value} ?? "") : $item);
+            if(is_array($item)){
+                $lineValue = $item[$this->_value] ??reset($item);
+            }
         }
 
         if (is_object($this->_disabled)) {
@@ -143,11 +153,17 @@ class Selectable
                     $optionLabel = call_user_func($this->_label, $item, $index);
                 } else {
                     $optionLabel = is_object($item) ? ($item->{$this->_label} ?? "N/A") : ($item);
+                    if(is_array($item)) {
+                        $optionLabel = $item[$this->_label] ?? array_keys($item)[0];
+                    }
                 }
                 if ($this->_value instanceof Closure) {
                     $optionValue = call_user_func($this->_value, $item, $index);
                 } else {
                     $optionValue = is_object($item) ? ($item->{$this->_value} ?? "") : $item;
+                    if(is_array($item)) {
+                        $optionValue = $item[$this->_value] ?? reset($item);
+                    }
                     if (is_string($index) && is_string($item)) {
                         $optionValue = $index;
                     }
@@ -219,9 +235,22 @@ class Selectable
     public function toSelectItems(): Collection
     {
         return $this->_collection->map(function ($item, $index) {
+            if ($this->_label instanceof Closure) {
+                $optionLabel = call_user_func($this->_label, $item, $index);
+            } else {
+                $optionLabel = is_object($item) ? ($item->{$this->_label} ?? "N/A") : ($item);
+            }
+            if ($this->_value instanceof Closure) {
+                $optionValue = call_user_func($this->_value, $item, $index);
+            } else {
+                $optionValue = is_object($item) ? ($item->{$this->_value} ?? "") : $item;
+                if (is_string($index) && is_string($item)) {
+                    $optionValue = $index;
+                }
+            }
             return [
-                'value' => $item->{$this->_value} ?? "",
-                'label' => $index,
+                'value' => $optionValue,
+                'label' => $optionLabel,
                 'isSelected' => $this->_shouldSelect($item, $index),
                 'isDisabled' => $this->_shouldDisable($item, $index),
                 'data' => $this->_getDataAttributes($item, $index),
