@@ -137,6 +137,18 @@ other than '`active`', and a custom class '`form-option custom`' will be applied
 > <small><strong>Note:</strong> Writing queries within blade templates is not recommended. This is only for simplifying
 > demonstration</small>
 
+### Non-object Array Collections
+You can work with collections of non-object arrays both flat and associative
+```php
+    $array1 = ["First", "Second", "Third"];
+    $array2 = ['first' => "First", 'second' => "Second", 'third' => "Third"];
+    $array3 = [['name' => 'First', 'number' => 1],['name' => 'Second', 'number' => 2],['name' => 'Third', 'number' => 3]]
+    $options = collect($array)->toSelectOptions();
+    $options2 = collect($array2)->toSelectOptions();
+    $options3 = collect($array3)->toSelectable()->withValue('number')->toSelectOptions();
+```
+
+
 ##  Get Selectable Items
 ```php
     $selectableItems = \App\Models\User::all()->toSelectable()->toSelectItems();
