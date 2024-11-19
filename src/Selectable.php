@@ -35,31 +35,29 @@ class Selectable
     /**
      * Check if the item should be selected
      * @param object $item
-     * @param int|null $index
+     * @param int|string|null $index
      * @return bool
      */
-    private function _shouldSelect(object $item, int|null $index = null): bool
+    private function _shouldSelect(mixed $item, int|string|null $index = null): bool
     {
-        $optionValue = ($this->_value instanceof Closure) ? call_user_func($this->_value, $item, $index) : $item->{$this->_value} ?? "";
         if ($this->_selected instanceof Closure) {
-            if (call_user_func($this->_selected, $item) === true) {
-                return true;
-            }
-        } else if (is_object($this->_selected)) {
-            if ((string)$this->_selected->{$this->_value} === (string)$optionValue) {
-                return true;
-            }
-        } else if (is_array($this->_selected)) {
+            return (bool)call_user_func($this->_selected, $item, $index);
+        }
+
+        $optionValue = ($this->_value instanceof Closure) ? call_user_func($this->_value, $item, $index) : (is_object($item) ? ($item->{$this->_value} ?? "") : $item);
+        if (is_object($this->_selected)) {
+            return ((string)$this->_selected->{$this->_value} === (string)$optionValue);
+        }
+
+        if (is_array($this->_selected)) {
             foreach ($this->_selected as $selectedItem) {
                 if (is_object($selectedItem)) {
-                    if ((string)$selectedItem->{$this->_value} === (string)$optionValue) {
-                        return true;
-                    }
-                } else if (is_array($selectedItem)) {
-                    if (array_key_exists($this->_value, $selectedItem) && (string)$selectedItem[$this->_value] === (string)$optionValue) {
-                        return true;
-                    }
-                } else if ((string)$selectedItem === (string)$optionValue) {
+                    return ((string)$selectedItem->{$this->_value} === (string)$optionValue);
+                }
+                if (is_array($selectedItem)) {
+                    return (array_key_exists($this->_value, $selectedItem) && (string)$selectedItem[$this->_value] === (string)$optionValue);
+                }
+                if ((string)$selectedItem === (string)$optionValue) {
                     return true;
                 }
             }
@@ -71,32 +69,35 @@ class Selectable
 
     /**
      * Check if the item should be selected
-     * @param object $item
-     * @param int|null $index
+     * @param mixed $item
+     * @param int|string|null $index
      * @return bool
      */
-    private function _shouldDisable(object $item, int|null $index = null): bool
+    private function _shouldDisable(mixed $item, int|string|null $index = null): bool
     {
-        $lineValue = $item->{$this->_value} ?? "";
-        if (is_callable($this->_disabled)) {
-            if (call_user_func($this->_disabled, $item) === true) {
-                return true;
-            }
-        } else if (is_object($this->_disabled)) {
-            if ((string)$this->_disabled->{$this->_value} === (string)$lineValue) {
-                return true;
-            }
-        } else if (is_array($this->_disabled)) {
+        if ($this->_disabled instanceof Closure) {
+            return (bool)call_user_func($this->_disabled, $item, $index);
+        }
+
+        if ($this->_value instanceof Closure) {
+            $lineValue = call_user_func($this->_value, $item, $index);
+        } else {
+            $lineValue = (is_object($item) ? ($item->{$this->_value} ?? "") : $item);
+        }
+
+        if (is_object($this->_disabled)) {
+            return ((string)$this->_disabled->{$this->_value} === (string)$lineValue);
+        }
+
+        if (is_array($this->_disabled)) {
             foreach ($this->_disabled as $disabledItem) {
                 if (is_object($disabledItem)) {
-                    if ((string)$disabledItem->{$this->_value} === (string)$lineValue) {
-                        return true;
-                    }
-                } else if (is_array($disabledItem)) {
-                    if (array_key_exists($this->_value, $disabledItem) && (string)$disabledItem[$this->_value] === (string)$lineValue) {
-                        return true;
-                    }
-                } else if ((string)$disabledItem === (string)$lineValue) {
+                    return ((string)$disabledItem->{$this->_value} === (string)$lineValue);
+                }
+                if (is_array($disabledItem)) {
+                    return (array_key_exists($this->_value, $disabledItem) && (string)$disabledItem[$this->_value] === (string)$lineValue);
+                }
+                if ((string)$disabledItem === (string)$lineValue) {
                     return true;
                 }
             }
@@ -126,9 +127,10 @@ class Selectable
     /**
      * Generate select options from a Collection instance
      * @param Collection $collection
+     * @param int $lastIndex
      * @return string
      */
-    private function _generateOptions(Collection $collection): string
+    private function _generateOptions(Collection $collection, int $lastIndex = 0): string
     {
         $html = "";
         foreach ($collection as $index => $item) {
@@ -137,8 +139,19 @@ class Selectable
                 $html .= $this->_generateOptions($item);
                 $html .= "</optgroup>";
             } else {
-                $optionLabel = ($this->_label instanceof Closure) ? call_user_func($this->_label, $item, $index) : $item->{$this->_label} ?? "N/A";
-                $optionValue = ($this->_value instanceof Closure) ? call_user_func($this->_value, $item, $index) : $item->{$this->_value} ?? "";
+                if ($this->_label instanceof Closure) {
+                    $optionLabel = call_user_func($this->_label, $item, $index);
+                } else {
+                    $optionLabel = is_object($item) ? ($item->{$this->_label} ?? "N/A") : ($item);
+                }
+                if ($this->_value instanceof Closure) {
+                    $optionValue = call_user_func($this->_value, $item, $index);
+                } else {
+                    $optionValue = is_object($item) ? ($item->{$this->_value} ?? "") : $item;
+                    if (is_string($index) && is_string($item)) {
+                        $optionValue = $index;
+                    }
+                }
                 $html .= "<option value=\"{$optionValue}\"";
                 if ($this->_shouldSelect($item, $index)) {
                     $html .= " selected";
