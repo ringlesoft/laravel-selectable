@@ -142,7 +142,7 @@ You can work with collections of non-object arrays both flat and associative
 ```php
     $array1 = ["First", "Second", "Third"];
     $array2 = ['first' => "First", 'second' => "Second", 'third' => "Third"];
-    $array3 = [['name' => 'First', 'number' => 1],['name' => 'Second', 'number' => 2],['name' => 'Third', 'number' => 3]]
+    $array3 = [['name' => 'First', 'number' => 1],['name' => 'Second', 'number' => 2],['name' => 'Third', 'number' => 3]];
     $options = collect($array)->toSelectOptions();
     $options2 = collect($array2)->toSelectOptions();
     $options3 = collect($array3)->toSelectable()->withValue('number')->toSelectOptions();
