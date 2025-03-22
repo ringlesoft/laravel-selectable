@@ -33,7 +33,7 @@ composer require ringlesoft/laravel-selectable
 
 ```html
 <select name="user_id">
-    {!! \\App\\Model\\User::all()->toSelectOptions(); !!}}
+    {!! \\App\\Models\\User::all()->toSelectOptions(); !!}}
 </select>
 ```
 
@@ -51,7 +51,7 @@ the value.
 
 ```bladehtml
 <select name="user_id">
-    {!! \\App\\Model\\User::all()->toSelectOptions('email', 'uuid', '6490132934f22'); !!}}
+    {!! \\App\\Models\\User::all()->toSelectOptions('email', 'uuid', '6490132934f22'); !!}}
 </select>
 ```
 
