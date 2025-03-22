@@ -3,7 +3,9 @@
 namespace RingleSoft\LaravelSelectable;
 
 use Closure;
+use Exception;
 use Illuminate\Support\Collection;
+use RingleSoft\LaravelSelectable\Utility\Logger;
 
 class Selectable
 {
@@ -14,6 +16,7 @@ class Selectable
     private mixed $_disabled = null;
     private array $_dataAttributes = [];
     private array $_classes = [];
+    private Closure|null $_id;
 
     /**
      * @param Collection $collection
@@ -21,14 +24,16 @@ class Selectable
      * @param string|Closure|null $value
      * @param mixed|null $selected
      * @param mixed|null $disabled
+     * @param Closure|null $id
      */
-    public function __construct(Collection $collection, string|Closure|null $label = null, string|Closure|null $value = null, mixed $selected = null, mixed $disabled = null)
+    public function __construct(Collection $collection, string|Closure|null $label = null, string|Closure|null $value = null, mixed $selected = null, mixed $disabled = null, Closure|null $id = null)
     {
         $this->_collection = $collection;
         $this->_label = $label ?? 'name';
         $this->_value = $value ?? 'id';
         $this->_selected = $selected ?? null;
         $this->_disabled = $disabled ?? null;
+        $this->_id = $id ?? null;
     }
 
 
@@ -75,7 +80,7 @@ class Selectable
     }
 
     /**
-     * Check if the item should be selected
+     * Check if the item should be disabled
      * @param mixed $item
      * @param int|string|null $index
      * @return bool
@@ -87,7 +92,11 @@ class Selectable
         }
 
         if ($this->_value instanceof Closure) {
-            $lineValue = call_user_func($this->_value, $item, $index);
+            try {
+                $lineValue = call_user_func($this->_value, $item, $index);
+            } catch (Exception $e) {
+                Logger::error($e->getMessage());
+            }
         } else {
             $lineValue = (is_object($item) ? ($item->{$this->_value} ?? "") : $item);
             if(is_array($item)){
@@ -130,8 +139,12 @@ class Selectable
             foreach ($this->_dataAttributes as $attributeItem) {
                 $attribute = $attributeItem['attribute'];
                 $value = $attributeItem['value'];
-                $index = (($attribute instanceof Closure) ? $attribute($item, $index) : $attribute);
-                $dataAttributes[(string) $index] = ($value instanceof Closure) ? $value($item, $index) : ($item->{$value} ?? '');
+                try {
+                    $index = (($attribute instanceof Closure) ? $attribute($item, $index) : $attribute);
+                    $dataAttributes[(string)$index] = ($value instanceof Closure) ? $value($item, $index) : ($item->{$value} ?? '');
+                } catch (Exception $e) {
+                    Logger::error($e->getMessage());
+                }
             }
         }
         return $dataAttributes;
@@ -171,7 +184,15 @@ class Selectable
                         $optionValue = $index;
                     }
                 }
+                // Prepare Option
                 $html .= "<option value=\"{$optionValue}\"";
+                if($this->_id instanceof Closure) {
+                    try {
+                        $html .= " id=\"" . ((string)call_user_func($this->_id, $item, $index)) . "\"";
+                    } catch (Exception $e) {
+                        Logger::error($e->getMessage());
+                    }
+                }
                 if ($this->_shouldSelect($item, $index)) {
                     $html .= " selected";
                 }
@@ -186,7 +207,11 @@ class Selectable
                 if (count($this->_classes) > 0) {
                     $html .= " class=\"";
                     foreach ($this->_classes as $class) {
-                        $html .= (($class instanceof Closure) ? ((string) $class($item, $index)) : $class) . " ";
+                        try {
+                            $html .= (($class instanceof Closure) ? ((string)$class($item, $index)) : $class) . " ";
+                        } catch (Exception $e) {
+                            Logger::error($e->getMessage());
+                        }
                     }
                     $html = rtrim($html) . "\"";
                 }
@@ -243,12 +268,20 @@ class Selectable
     {
         return $this->_collection->map(function ($item, $index) {
             if ($this->_label instanceof Closure) {
-                $optionLabel = call_user_func($this->_label, $item, $index);
+                try {
+                    $optionLabel = call_user_func($this->_label, $item, $index);
+                } catch (Exception $e) {
+                    Logger::error($e->getMessage());
+                }
             } else {
                 $optionLabel = is_object($item) ? ($item->{$this->_label} ?? "N/A") : ($item);
             }
             if ($this->_value instanceof Closure) {
-                $optionValue = call_user_func($this->_value, $item, $index);
+                try {
+                    $optionValue = call_user_func($this->_value, $item, $index);
+                } catch (Exception $e) {
+                    Logger::error($e->getMessage());
+                }
             } else {
                 $optionValue = is_object($item) ? ($item->{$this->_value} ?? "") : $item;
                 if (is_string($index) && is_string($item)) {
@@ -331,6 +364,17 @@ class Selectable
     {
         $classes = is_array($class) ? $class : explode(' ', $class);
         $this->_classes = [...$this->_classes, ...$classes];
+        return $this;
+    }
+
+    /**
+     * Set the ID of every select option
+     * @param Closure(object $item, int $index):string $id A closure that returns the ID of every select option
+     * @return $this
+     */
+    public function withId(Closure $id): self
+    {
+        $this->_id = $id;
         return $this;
     }
 
