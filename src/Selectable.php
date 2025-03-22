@@ -318,9 +318,15 @@ class Selectable
         return $this;
     }
 
-    public function withClass(string $class): self
+    /**
+     * Set CSS classes to be added to every select option
+     * @param string|array<string> $class
+     * @return $this
+     */
+    public function withClass(string|array $class): self
     {
-        $this->_classes = array_unique([...$this->_classes, ...explode(' ', $class)]);
+        $classes = is_array($class) ? $class : explode(' ', $class);
+        $this->_classes = array_unique([...$this->_classes, ...$classes]);
         return $this;
     }
 
