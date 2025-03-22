@@ -5,6 +5,9 @@ namespace RingleSoft\LaravelSelectable;
 use Closure;
 use Exception;
 use Illuminate\Support\Collection;
+use ReflectionException;
+use ReflectionFunction;
+use RingleSoft\LaravelSelectable\Exceptions\InvalidCallableException;
 use RingleSoft\LaravelSelectable\Utility\Logger;
 
 class Selectable
@@ -414,6 +417,38 @@ class Selectable
             }
         }
         return $this;
+    }
+
+
+    /**
+     * Internal method to validate the callable.
+     * @param callable $callable
+     * @param string $returnType
+     * @param null $argumentName
+     * @return void
+     * @throws InvalidCallableException
+     * @throws ReflectionException
+     */
+    private function validateCallable(callable $callable, string $returnType = 'string', $argumentName = null): void
+        {
+            $reflection = new ReflectionFunction($callable);
+            $parameters = $reflection->getParameters();
+
+            // Ensure max 2 parameters
+            if (count($parameters) > 2) {
+                throw new InvalidCallableException("The callable {$argumentName} must accept maximum of 2 parameters.");
+            }
+
+            // Ensure second parameter is `int`
+            if ($parameters[1] && $parameters[1]->hasType() && $parameters[1]->getType()?->getName() !== 'int') {
+                throw new InvalidCallableException("The second parameter of the callable {$argumentName} must be of type `int`.");
+            }
+
+            // Ensure the return type is `string`
+            if ($reflection->hasReturnType() && $reflection->getReturnType()?->getName() !== $returnType) {
+                throw new InvalidCallableException("The callable {$argumentName} must return a string.");
+            }
+
     }
 
 }
