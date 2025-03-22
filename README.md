@@ -1,7 +1,10 @@
 # Laravel Selectable
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/ringlesoft/laravel-selectable.svg?style=flat-square)](https://packagist.org/packages/ringlesoft/laravel-selectable)
-[![Total Downloads](https://img.shields.io/packagist/dt/ringlesoft/laravel-selectable.svg?style=flat-square)](https://packagist.org/packages/ringlesoft/laravel-selectable)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/ringlesoft/laravel-selectable.svg)](https://packagist.org/packages/ringlesoft/laravel-selectable)
+[![Total Downloads](https://img.shields.io/packagist/dt/ringlesoft/laravel-selectable.svg)](https://packagist.org/packages/ringlesoft/laravel-selectable)
+[![PHP Version Require](https://poser.pugx.org/ringlesoft/laravel-selectable/require/php)](https://packagist.org/ringlesoft/laravel-selectable)
+[![Dependents](https://poser.pugx.org/ringlesoft/laravel-selectable/dependents)](https://packagist.org/packages/ringlesoft/laravel-selectable)
 ***
+
 Laravel Selectable is a powerful package that simplifies the process of generating HTML select options from Laravel
 collections. With its flexible and intuitive syntax, you can easily create customized select options without the need
 for
