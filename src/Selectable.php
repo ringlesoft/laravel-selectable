@@ -3,7 +3,6 @@
 namespace RingleSoft\LaravelSelectable;
 
 use Closure;
-use Exception;
 use Illuminate\Support\Collection;
 use ReflectionException;
 use ReflectionFunction;
@@ -52,11 +51,11 @@ class Selectable
             return (bool)call_user_func($this->_selected, $item, $index);
         }
 
-        if($this->_value instanceof Closure) {
+        if ($this->_value instanceof Closure) {
             $optionValue = call_user_func($this->_value, $item, $index);
         } else {
             $optionValue = (is_object($item) ? ($item->{$this->_value} ?? "") : $item);
-            if(is_array($item)) {
+            if (is_array($item)) {
                 $optionValue = $item[$this->_value] ?? reset($item);
             }
         }
@@ -95,15 +94,11 @@ class Selectable
         }
 
         if ($this->_value instanceof Closure) {
-            try {
-                $lineValue = call_user_func($this->_value, $item, $index);
-            } catch (Exception $e) {
-                Logger::error($e->getMessage());
-            }
+            $lineValue = call_user_func($this->_value, $item, $index);
         } else {
             $lineValue = (is_object($item) ? ($item->{$this->_value} ?? "") : $item);
-            if(is_array($item)){
-                $lineValue = $item[$this->_value] ??reset($item);
+            if (is_array($item)) {
+                $lineValue = $item[$this->_value] ?? reset($item);
             }
         }
 
@@ -142,12 +137,8 @@ class Selectable
             foreach ($this->_dataAttributes as $attributeItem) {
                 $attribute = $attributeItem['attribute'];
                 $value = $attributeItem['value'];
-                try {
-                    $index = (($attribute instanceof Closure) ? $attribute($item, $index) : $attribute);
-                    $dataAttributes[(string)$index] = ($value instanceof Closure) ? $value($item, $index) : ($item->{$value} ?? '');
-                } catch (Exception $e) {
-                    Logger::error($e->getMessage());
-                }
+                $index = (($attribute instanceof Closure) ? $attribute($item, $index) : $attribute);
+                $dataAttributes[(string)$index] = ($value instanceof Closure) ? $value($item, $index) : ($item->{$value} ?? '');
             }
         }
         return $dataAttributes;
@@ -172,7 +163,7 @@ class Selectable
                     $optionLabel = call_user_func($this->_label, $item, $index);
                 } else {
                     $optionLabel = is_object($item) ? ($item->{$this->_label} ?? "N/A") : ($item);
-                    if(is_array($item)) {
+                    if (is_array($item)) {
                         $optionLabel = $item[$this->_label] ?? array_keys($item)[0];
                     }
                 }
@@ -180,7 +171,7 @@ class Selectable
                     $optionValue = call_user_func($this->_value, $item, $index);
                 } else {
                     $optionValue = is_object($item) ? ($item->{$this->_value} ?? "") : $item;
-                    if(is_array($item)) {
+                    if (is_array($item)) {
                         $optionValue = $item[$this->_value] ?? reset($item);
                     }
                     if (is_string($index) && is_string($item)) {
@@ -189,12 +180,8 @@ class Selectable
                 }
                 // Prepare Option
                 $html .= "<option value=\"{$optionValue}\"";
-                if($this->_id instanceof Closure) {
-                    try {
-                        $html .= " id=\"" . ((string)call_user_func($this->_id, $item, $index)) . "\"";
-                    } catch (Exception $e) {
-                        Logger::error($e->getMessage());
-                    }
+                if ($this->_id instanceof Closure) {
+                    $html .= " id=\"" . ((string)call_user_func($this->_id, $item, $index)) . "\"";
                 }
                 if ($this->_shouldSelect($item, $index)) {
                     $html .= " selected";
@@ -210,11 +197,7 @@ class Selectable
                 if (count($this->_classes) > 0) {
                     $html .= " class=\"";
                     foreach ($this->_classes as $class) {
-                        try {
-                            $html .= (($class instanceof Closure) ? ((string)$class($item, $index)) : $class) . " ";
-                        } catch (Exception $e) {
-                            Logger::error($e->getMessage());
-                        }
+                        $html .= (($class instanceof Closure) ? ((string)$class($item, $index)) : $class) . " ";
                     }
                     $html = rtrim($html) . "\"";
                 }
@@ -271,20 +254,12 @@ class Selectable
     {
         return $this->_collection->map(function ($item, $index) {
             if ($this->_label instanceof Closure) {
-                try {
-                    $optionLabel = call_user_func($this->_label, $item, $index);
-                } catch (Exception $e) {
-                    Logger::error($e->getMessage());
-                }
+                $optionLabel = call_user_func($this->_label, $item, $index);
             } else {
                 $optionLabel = is_object($item) ? ($item->{$this->_label} ?? "N/A") : ($item);
             }
             if ($this->_value instanceof Closure) {
-                try {
-                    $optionValue = call_user_func($this->_value, $item, $index);
-                } catch (Exception $e) {
-                    Logger::error($e->getMessage());
-                }
+                $optionValue = call_user_func($this->_value, $item, $index);
             } else {
                 $optionValue = is_object($item) ? ($item->{$this->_value} ?? "") : $item;
                 if (is_string($index) && is_string($item)) {
@@ -326,7 +301,7 @@ class Selectable
 
     /**
      * Specify the selected values for the selectable items
-     * @param mixed $selected
+     * @param mixed|Closure(mixed, int|string|null): bool $selected
      * @return $this
      */
     public function withSelected(mixed $selected): self
@@ -351,7 +326,7 @@ class Selectable
      * @param string|Closure(mixed, int):string $attribute Data attribute name
      * * @param string|Closure(mixed, int):mixed $value Data attribute value
      * * @return $this
- */
+     */
     public function withDataAttribute(string|Closure $attribute, string|Closure $value): self
     {
         $this->_dataAttributes[] = ['attribute' => $attribute, 'value' => $value];
@@ -421,34 +396,32 @@ class Selectable
 
 
     /**
-     * Internal method to validate the callable.
+     * Experimental (Currently not used)
+     * Internal method to validate the user provided callable.
      * @param callable $callable
      * @param string $returnType
      * @param null $argumentName
      * @return void
      * @throws InvalidCallableException
-     * @throws ReflectionException
      */
     private function validateCallable(callable $callable, string $returnType = 'string', $argumentName = null): void
-        {
+    {
+        try {
             $reflection = new ReflectionFunction($callable);
-            $parameters = $reflection->getParameters();
-
-            // Ensure max 2 parameters
-            if (count($parameters) > 2) {
-                throw new InvalidCallableException("The callable {$argumentName} must accept maximum of 2 parameters.");
-            }
-
-            // Ensure second parameter is `int`
-            if ($parameters[1] && $parameters[1]->hasType() && $parameters[1]->getType()?->getName() !== 'int') {
-                throw new InvalidCallableException("The second parameter of the callable {$argumentName} must be of type `int`.");
-            }
-
-            // Ensure the return type is `string`
-            if ($reflection->hasReturnType() && $reflection->getReturnType()?->getName() !== $returnType) {
-                throw new InvalidCallableException("The callable {$argumentName} must return a string.");
-            }
-
+        } catch (ReflectionException $e) {
+            Logger::error($e->getMessage());
+            return;
+        }
+        $parameters = $reflection->getParameters();
+        if (count($parameters) > 2) {
+            throw new InvalidCallableException("The callable {$argumentName} must accept maximum of 2 parameters.");
+        }
+        if (count($parameters) === 2  && $parameters[1]->hasType() && $parameters[1]->getType()?->getName() !== 'int') {
+            throw new InvalidCallableException("The second parameter of the callable {$argumentName} must be of type `int`.");
+        }
+        if ($reflection->hasReturnType() && $reflection->getReturnType()?->getName() !== $returnType) {
+            throw new InvalidCallableException("The callable {$argumentName} must return a string.");
+        }
     }
 
 }
