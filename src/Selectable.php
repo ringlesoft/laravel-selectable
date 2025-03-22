@@ -127,8 +127,11 @@ class Selectable
     {
         $dataAttributes = [];
         if (count($this->_dataAttributes) > 0) {
-            foreach ($this->_dataAttributes as $attribute => $value) {
-                $dataAttributes[$attribute] = ($value instanceof Closure) ? $value($item) : ($item->{$value} ?? '');
+            foreach ($this->_dataAttributes as $attributeItem) {
+                $attribute = $attributeItem['attribute'];
+                $value = $attributeItem['value'];
+                $index = (($attribute instanceof Closure) ? $attribute($item, $index) : $attribute);
+                $dataAttributes[(string) $index] = ($value instanceof Closure) ? $value($item, $index) : ($item->{$value} ?? '');
             }
         }
         return $dataAttributes;
@@ -192,9 +195,9 @@ class Selectable
     /**
      * Generate select options from a Collection instance
      * @param Collection $collection the collection instance to be used
-     * @param string|Closure|null $label the field to be used as the label for the option (default is 'name')
-     * @param string|Closure|null $value the field to be used as value of the option (default is 'id')
-     * @param mixed $selected selected value/values
+     * @param string|Closure(mixed, int):string|null $label the field to be used as the label for the option (default is 'name')
+     * @param string|Closure(mixed, int):string|null $value the field to be used as value of the option (default is 'id')
+     * @param mixed|Closure(mixed, int):mixed|object|null $selected selected value/values
      * @param mixed|null $disabled
      * @return string
      */
@@ -261,7 +264,7 @@ class Selectable
 
     /**
      * Specify the label for the selectable items
-     * @param string|Closure $label name of the field to be used as label
+     * @param string|Closure(mixed, int):string $label name of the field to be used as label
      * @return $this
      */
     public function withLabel(string|Closure $label): self
@@ -272,7 +275,7 @@ class Selectable
 
     /**
      * Specify the value for the selectable items
-     * @param string|Closure $value name of the field to be used as value
+     * @param string|Closure(mixed, int):string $value name of the field to be used as value
      * @return $this
      */
     public function withValue(string|Closure $value): self
@@ -305,13 +308,13 @@ class Selectable
 
     /**
      * Specify a data attribute for the selectable items
-     * @param string $attribute
-     * @param string|Closure $value
-     * @return $this
-     */
-    public function withDataAttribute(string $attribute, string|Closure $value): self
+     * @param string|Closure(mixed, int):string $attribute Data attribute name
+     * * @param string|Closure(mixed, int):mixed $value Data attribute value
+     * * @return $this
+ */
+    public function withDataAttribute(string|Closure $attribute, string|Closure $value): self
     {
-        $this->_dataAttributes[$attribute] = $value;
+        $this->_dataAttributes[] = ['attribute' => $attribute, 'value' => $value];
         return $this;
     }
 
