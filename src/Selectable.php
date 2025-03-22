@@ -184,7 +184,11 @@ class Selectable
                     }
                 }
                 if (count($this->_classes) > 0) {
-                    $html .= " class=\"" . (implode(' ', $this->_classes)) . "\"";
+                    $html .= " class=\"";
+                    foreach ($this->_classes as $class) {
+                        $html .= (($class instanceof Closure) ? ((string) $class($item, $index)) : $class) . " ";
+                    }
+                    $html = rtrim($html) . "\"";
                 }
                 $html .= " >{$optionLabel}</option>";
             }
@@ -320,13 +324,13 @@ class Selectable
 
     /**
      * Set CSS classes to be added to every select option
-     * @param string|array<string> $class
+     * @param string|array<string>|Closure(object $item, int $index):string $class CSS class(es) to be added to every select option. You can pass a closure that returns a string.
      * @return $this
      */
-    public function withClass(string|array $class): self
+    public function withClass(string|array|Closure $class): self
     {
         $classes = is_array($class) ? $class : explode(' ', $class);
-        $this->_classes = array_unique([...$this->_classes, ...$classes]);
+        $this->_classes = [...$this->_classes, ...$classes];
         return $this;
     }
 
