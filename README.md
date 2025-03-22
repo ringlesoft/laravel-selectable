@@ -33,7 +33,7 @@ composer require ringlesoft/laravel-selectable
 
 ```html
 <select name="user_id">
-    {!! \\App\\Model\\User::all()->toSelectOptions(); !!}}
+    {!! \\App\\Models\\User::all()->toSelectOptions(); !!}}
 </select>
 ```
 
@@ -51,7 +51,7 @@ the value.
 
 ```bladehtml
 <select name="user_id">
-    {!! \\App\\Model\\User::all()->toSelectOptions('email', 'uuid', '6490132934f22'); !!}}
+    {!! \\App\\Models\\User::all()->toSelectOptions('email', 'uuid', '6490132934f22'); !!}}
 </select>
 ```
 
@@ -116,21 +116,22 @@ other than '`active`', and a custom class '`form-option custom`' will be applied
 
 #### Available methods
 
-- `withLabel(string|callable $label)`: This method allows you to customize the label for each option. A string will be
-  used as the collection field from which the label will be generated, while a callable will be used to generate the
+- `withLabel(string|Closure $label)`: This method allows you to customize the label for each option. A string will be
+  used as the collection field from which the label will be generated, while a Closure will be used to generate the
   label.
-- `withValue(string|callable $value)`: This method allows you to customize the value for each option. A string will be
-  used as the collection field from which the value will be generated, while a callable will be used to generate the
+- `withValue(string|Closure $value)`: This method allows you to customize the value for each option. A string will be
+  used as the collection field from which the value will be generated, while a Closure will be used to generate the
   value.
-- `withSelected(mixed|callable $selected)`: This method allows you to customize the selected options. Can be
-  a `string`, `int`, an array of `string`/`int`, a `model` or a callable that returns a boolean value.
-- `withDisabled(mixed|callable $disabled)`: This method allows you to customize the disabled options. Can be
-  a `string`, `int`, an array of `string`/`int`, a `model` or a callable that returns a boolean value.
-- `withDataAttribute(string $attribute, mixed|callable $value)`: This method allows you to add a data attribute to each
-  option.
-- `withClass(string $class)`: This method allows you to add a class to each option.
-- `toSelectItems()`: This method converts the selectable collection to an array of selectable items. Useful for Ajax
-  responses or SPA.
+- `withSelected(mixed|Closure $selected)`: This method allows you to customize the selected options. Can be
+  a `string`, `int`, an array of `string`/`int`, a `model` or a `Closure` that returns a `boolean` value.
+- `withDisabled(mixed|Closure $disabled)`: This method allows you to customize the disabled options. Can be
+  a `string`, `int`, an array of `string`/`int`, a `model` or a `Closure` that returns a `boolean` value.
+- `withDataAttribute(string|Closure $attribute, mixed|Closure $value)`: This method allows you to add a data attribute to each
+  option. The first parameter can be a `string` or a `Closure` that returns a `string` which will be attached as `data-{attribute}="{value}"` to the option. The second parameter can be any type convertable to a string or a `Closure` that returns a `string`.
+- `withId(string|Closure $id)`: This method allows you to add an `id` attribute to each option. The value can be a `Closure` that returns a unique `string` for each option.
+- `withClass(string|array|Closure $class)`: This method allows you to add a class to each option. The value can be a `string` or an `array` of `string` or a `Closure` that returns a `string`.
+- `toSelectItems()`: This method converts the selectable collection to an `array` of selectable items. Useful for Ajax
+  responses or SPAs.
 - `toSelectOptions()`: This method converts the selectable collection to an HTML select options string.
 - Some of the methods from `Illuminate\Support\Collection` are also available including `groupBy()`.
 
@@ -142,14 +143,14 @@ You can work with collections of non-object arrays both flat and associative
 ```php
     $array1 = ["First", "Second", "Third"];
     $array2 = ['first' => "First", 'second' => "Second", 'third' => "Third"];
-    $array3 = [['name' => 'First', 'number' => 1],['name' => 'Second', 'number' => 2],['name' => 'Third', 'number' => 3]]
+    $array3 = [['name' => 'First', 'number' => 1],['name' => 'Second', 'number' => 2],['name' => 'Third', 'number' => 3]];
     $options = collect($array)->toSelectOptions();
     $options2 = collect($array2)->toSelectOptions();
     $options3 = collect($array3)->toSelectable()->withValue('number')->toSelectOptions();
 ```
 
 
-##  Get Selectable Items
+##  Getting Selectable Items
 ```php
     $selectableItems = \App\Models\User::all()->toSelectable()->toSelectItems();
 ```
@@ -173,7 +174,7 @@ Single Page Applications (SPAs).
 
 
 ## Testing
-
+To run tests, run the following command:
 ```bash
 composer test
 ```

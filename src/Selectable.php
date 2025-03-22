@@ -4,6 +4,10 @@ namespace RingleSoft\LaravelSelectable;
 
 use Closure;
 use Illuminate\Support\Collection;
+use ReflectionException;
+use ReflectionFunction;
+use RingleSoft\LaravelSelectable\Exceptions\InvalidCallableException;
+use RingleSoft\LaravelSelectable\Utility\Logger;
 
 class Selectable
 {
@@ -14,6 +18,7 @@ class Selectable
     private mixed $_disabled = null;
     private array $_dataAttributes = [];
     private array $_classes = [];
+    private Closure|null $_id;
 
     /**
      * @param Collection $collection
@@ -21,14 +26,16 @@ class Selectable
      * @param string|Closure|null $value
      * @param mixed|null $selected
      * @param mixed|null $disabled
+     * @param Closure|null $id
      */
-    public function __construct(Collection $collection, string|Closure|null $label = null, string|Closure|null $value = null, mixed $selected = null, mixed $disabled = null)
+    public function __construct(Collection $collection, string|Closure|null $label = null, string|Closure|null $value = null, mixed $selected = null, mixed $disabled = null, Closure|null $id = null)
     {
         $this->_collection = $collection;
         $this->_label = $label ?? 'name';
         $this->_value = $value ?? 'id';
         $this->_selected = $selected ?? null;
         $this->_disabled = $disabled ?? null;
+        $this->_id = $id ?? null;
     }
 
 
@@ -44,11 +51,11 @@ class Selectable
             return (bool)call_user_func($this->_selected, $item, $index);
         }
 
-        if($this->_value instanceof Closure) {
+        if ($this->_value instanceof Closure) {
             $optionValue = call_user_func($this->_value, $item, $index);
         } else {
             $optionValue = (is_object($item) ? ($item->{$this->_value} ?? "") : $item);
-            if(is_array($item)) {
+            if (is_array($item)) {
                 $optionValue = $item[$this->_value] ?? reset($item);
             }
         }
@@ -75,7 +82,7 @@ class Selectable
     }
 
     /**
-     * Check if the item should be selected
+     * Check if the item should be disabled
      * @param mixed $item
      * @param int|string|null $index
      * @return bool
@@ -90,8 +97,8 @@ class Selectable
             $lineValue = call_user_func($this->_value, $item, $index);
         } else {
             $lineValue = (is_object($item) ? ($item->{$this->_value} ?? "") : $item);
-            if(is_array($item)){
-                $lineValue = $item[$this->_value] ??reset($item);
+            if (is_array($item)) {
+                $lineValue = $item[$this->_value] ?? reset($item);
             }
         }
 
@@ -127,8 +134,11 @@ class Selectable
     {
         $dataAttributes = [];
         if (count($this->_dataAttributes) > 0) {
-            foreach ($this->_dataAttributes as $attribute => $value) {
-                $dataAttributes[$attribute] = ($value instanceof Closure) ? $value($item) : ($item->{$value} ?? '');
+            foreach ($this->_dataAttributes as $attributeItem) {
+                $attribute = $attributeItem['attribute'];
+                $value = $attributeItem['value'];
+                $index = (($attribute instanceof Closure) ? $attribute($item, $index) : $attribute);
+                $dataAttributes[(string)$index] = ($value instanceof Closure) ? $value($item, $index) : ($item->{$value} ?? '');
             }
         }
         return $dataAttributes;
@@ -153,7 +163,7 @@ class Selectable
                     $optionLabel = call_user_func($this->_label, $item, $index);
                 } else {
                     $optionLabel = is_object($item) ? ($item->{$this->_label} ?? "N/A") : ($item);
-                    if(is_array($item)) {
+                    if (is_array($item)) {
                         $optionLabel = $item[$this->_label] ?? array_keys($item)[0];
                     }
                 }
@@ -161,14 +171,18 @@ class Selectable
                     $optionValue = call_user_func($this->_value, $item, $index);
                 } else {
                     $optionValue = is_object($item) ? ($item->{$this->_value} ?? "") : $item;
-                    if(is_array($item)) {
+                    if (is_array($item)) {
                         $optionValue = $item[$this->_value] ?? reset($item);
                     }
                     if (is_string($index) && is_string($item)) {
                         $optionValue = $index;
                     }
                 }
+                // Prepare Option
                 $html .= "<option value=\"{$optionValue}\"";
+                if ($this->_id instanceof Closure) {
+                    $html .= " id=\"" . ((string)call_user_func($this->_id, $item, $index)) . "\"";
+                }
                 if ($this->_shouldSelect($item, $index)) {
                     $html .= " selected";
                 }
@@ -181,7 +195,11 @@ class Selectable
                     }
                 }
                 if (count($this->_classes) > 0) {
-                    $html .= " class=\"" . (implode(' ', $this->_classes)) . "\"";
+                    $html .= " class=\"";
+                    foreach ($this->_classes as $class) {
+                        $html .= (($class instanceof Closure) ? ((string)$class($item, $index)) : $class) . " ";
+                    }
+                    $html = rtrim($html) . "\"";
                 }
                 $html .= " >{$optionLabel}</option>";
             }
@@ -192,9 +210,9 @@ class Selectable
     /**
      * Generate select options from a Collection instance
      * @param Collection $collection the collection instance to be used
-     * @param string|Closure|null $label the field to be used as the label for the option (default is 'name')
-     * @param string|Closure|null $value the field to be used as value of the option (default is 'id')
-     * @param mixed $selected selected value/values
+     * @param string|Closure(mixed, int):string|null $label the field to be used as the label for the option (default is 'name')
+     * @param string|Closure(mixed, int):string|null $value the field to be used as value of the option (default is 'id')
+     * @param mixed|Closure(mixed, int):mixed|object|null $selected selected value/values
      * @param mixed|null $disabled
      * @return string
      */
@@ -261,7 +279,7 @@ class Selectable
 
     /**
      * Specify the label for the selectable items
-     * @param string|Closure $label name of the field to be used as label
+     * @param string|Closure(mixed, int):string $label name of the field to be used as label
      * @return $this
      */
     public function withLabel(string|Closure $label): self
@@ -272,7 +290,7 @@ class Selectable
 
     /**
      * Specify the value for the selectable items
-     * @param string|Closure $value name of the field to be used as value
+     * @param string|Closure(mixed, int):string $value name of the field to be used as value
      * @return $this
      */
     public function withValue(string|Closure $value): self
@@ -283,7 +301,7 @@ class Selectable
 
     /**
      * Specify the selected values for the selectable items
-     * @param mixed $selected
+     * @param mixed|Closure(mixed, int|string|null): bool $selected
      * @return $this
      */
     public function withSelected(mixed $selected): self
@@ -305,19 +323,36 @@ class Selectable
 
     /**
      * Specify a data attribute for the selectable items
-     * @param string $attribute
-     * @param string|Closure $value
-     * @return $this
+     * @param string|Closure(mixed, int):string $attribute Data attribute name
+     * * @param string|Closure(mixed, int):mixed $value Data attribute value
+     * * @return $this
      */
-    public function withDataAttribute(string $attribute, string|Closure $value): self
+    public function withDataAttribute(string|Closure $attribute, string|Closure $value): self
     {
-        $this->_dataAttributes[$attribute] = $value;
+        $this->_dataAttributes[] = ['attribute' => $attribute, 'value' => $value];
         return $this;
     }
 
-    public function withClass(string $class): self
+    /**
+     * Set CSS classes to be added to every select option
+     * @param string|array<string>|Closure(object $item, int $index):string $class CSS class(es) to be added to every select option. You can pass a closure that returns a string.
+     * @return $this
+     */
+    public function withClass(string|array|Closure $class): self
     {
-        $this->_classes = array_unique([...$this->_classes, ...explode(' ', $class)]);
+        $classes = is_array($class) ? $class : explode(' ', $class);
+        $this->_classes = [...$this->_classes, ...$classes];
+        return $this;
+    }
+
+    /**
+     * Set the ID of every select option
+     * @param Closure(object $item, int $index):string $id A closure that returns the ID of every select option
+     * @return $this
+     */
+    public function withId(Closure $id): self
+    {
+        $this->_id = $id;
         return $this;
     }
 
@@ -357,6 +392,36 @@ class Selectable
             }
         }
         return $this;
+    }
+
+
+    /**
+     * Experimental (Currently not used)
+     * Internal method to validate the user provided callable.
+     * @param callable $callable
+     * @param string $returnType
+     * @param null $argumentName
+     * @return void
+     * @throws InvalidCallableException
+     */
+    private function validateCallable(callable $callable, string $returnType = 'string', $argumentName = null): void
+    {
+        try {
+            $reflection = new ReflectionFunction($callable);
+        } catch (ReflectionException $e) {
+            Logger::error($e->getMessage());
+            return;
+        }
+        $parameters = $reflection->getParameters();
+        if (count($parameters) > 2) {
+            throw new InvalidCallableException("The callable {$argumentName} must accept maximum of 2 parameters.");
+        }
+        if (count($parameters) === 2  && $parameters[1]->hasType() && $parameters[1]->getType()?->getName() !== 'int') {
+            throw new InvalidCallableException("The second parameter of the callable {$argumentName} must be of type `int`.");
+        }
+        if ($reflection->hasReturnType() && $reflection->getReturnType()?->getName() !== $returnType) {
+            throw new InvalidCallableException("The callable {$argumentName} must return a string.");
+        }
     }
 
 }
