@@ -2,22 +2,13 @@
 
 namespace RingleSoft\LaravelSelectable\Tests;
 
-use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Orchestra\Testbench\TestCase as BaseTestCase;
+use RingleSoft\LaravelSelectable\LaravelSelectableServiceProvider;
 
 class TestCase extends BaseTestCase
 {
-
-    /**
-     * @inheritDoc
-     */
-    public function createApplication(): void
+    protected function getPackageProviders($app): array
     {
-        // TODO: Implement createApplication() method.
+        return [LaravelSelectableServiceProvider::class];
     }
-
-    protected function getEnvironmentSetUp($app): void  {
-        // TODO: Implement getEnvironmentSetUp() method.
-    }
-
-
 }
