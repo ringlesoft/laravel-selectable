@@ -2,11 +2,10 @@
 
 namespace Illuminate\Support {
     /**
-     * @method \Ringlesoft\LaravelSelectable\Selectable toSelectable()
-     * @mehtbod string toSelectOptions(string|callable $label = null, string|callable $value = null, mixed $selected = null, mixed $disabled = null)
+     * @method \RingleSoft\LaravelSelectable\Selectable toSelectable()
+     * @method string toSelectOptions(string|callable|null $label = null, string|callable|null $value = null, mixed $selected = null, mixed $disabled = null)
      */
     class Collection
     {
     }
 }
-

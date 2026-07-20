@@ -10,7 +10,7 @@ class LaravelSelectableServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->alias(\Ringlesoft\LaravelSelectable\Facades\Selectable::class, 'LaravelSelectable');
+        $this->app->alias(\RingleSoft\LaravelSelectable\Facades\Selectable::class, 'LaravelSelectable');
     }
 
     public function boot(): void

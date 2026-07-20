@@ -5,10 +5,35 @@
 [![Dependents](https://poser.pugx.org/ringlesoft/laravel-selectable/dependents)](https://packagist.org/packages/ringlesoft/laravel-selectable)
 ***
 
-Laravel Selectable is a powerful package that simplifies the process of generating HTML select options from Laravel
+**Laravel Selectable** is a powerful package that simplifies the process of generating HTML select options from Laravel
 collections. With its flexible and intuitive syntax, you can easily create customized select options without the need
 for
-additional traits or class extensions.
+additional traits or class extensions. Yes, I mean *NO CONFIGURATION REQUIRED*.
+
+
+**Laravel Selectable** transforms the way you generate HTML select options in your Laravel applications. If you've ever found yourself writing repetitive Blade templates full of `@foreach` loops just to create dropdown menus from your Eloquent collections, this package is your solution.
+
+Generated labels and attribute values are HTML-escaped. This keeps values from your database safe to render with Blade's `{!! !!}` syntax; pass plain text from label/value closures rather than pre-built HTML.
+
+### What Problem Does It Solve?
+
+Creating HTML select elements from database records typically involves repetitive code:
+
+```bladehtml
+<select name="user_id">
+    @foreach($users as $user)
+        <option value="{{ $user->id }}" {{ $selectedId == $user->id ? 'selected' : '' }}>
+            {{ $user->name }}
+        </option>
+    @endforeach
+</select>
+```
+Laravel Selectable eliminates this boilerplate, providing a fluent, chainable API that seamlessly integrates with Laravel's Collection class:
+```bladehtml
+<select name="user_id">
+    {!! $users->toSelectOptions(selected: $selectedId) !!}
+</select>
+```
 
 ## Features
 
@@ -34,9 +59,9 @@ composer require ringlesoft/laravel-selectable
 
 ### 1. Basic Usage
 
-```html
+```bladehtml
 <select name="user_id">
-    {!! \\App\\Models\\User::all()->toSelectOptions(); !!}}
+    {!! \\App\\Models\\User::all()->toSelectOptions() !!}
 </select>
 ```
 
@@ -54,7 +79,7 @@ the value.
 
 ```bladehtml
 <select name="user_id">
-    {!! \\App\\Models\\User::all()->toSelectOptions('email', 'uuid', '6490132934f22'); !!}}
+    {!! \\App\\Models\\User::all()->toSelectOptions('email', 'uuid', '6490132934f22') !!}
 </select>
 ```
 
@@ -93,7 +118,7 @@ convert the `Selectable` object into html select options.
     ->withValue('id')
     ->withLabel(fn($user) => "{$user->first_name} {$user->last_name}")
     ->withSelected([2, 3])
-    ->withDisabled(fn($item) => $item->status = 'inactive')
+    ->withDisabled(fn($item) => $item->status === 'inactive')
     ->withDataAttribute('hidden', fn($item) => $item->status !== 'active')
     ->withClass('form-option custom')
     ->toSelectOptions();
@@ -166,10 +191,11 @@ Single Page Applications (SPAs).
         [
             'label' => 'User Name',
             'value' => 'user_id',
-            'selected' => false,
-            'disabled' => false,
-            'dataAttributes' => ['hidden' => false],
+            'isSelected' => false,
+            'isDisabled' => false,
+            'data' => ['hidden' => false],
             'classes' => ['form-option', 'custom'],
+            'id' => null,
         ],
         [...]
     ]
@@ -198,6 +224,11 @@ Please review [our security policy](../../security/policy) on how to report secu
 
 - [David Ringle](https://github.com/ringunger) (Author)
 - [All Contributors](../../contributors)
+
+
+## Support Me
+- [Buy me a Coffee](https://www.buymeacoffee.com/ringunger)
+- [Github Sponsors](https://github.com/sponsors/ringlesoft)
 
 ## License
 
