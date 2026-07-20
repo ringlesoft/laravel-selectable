@@ -2,13 +2,8 @@
 
 namespace RingleSoft\LaravelSelectable\Tests;
 
-use Orchestra\Testbench\TestCase as BaseTestCase;
-use RingleSoft\LaravelSelectable\LaravelSelectableServiceProvider;
+use PHPUnit\Framework\TestCase as BaseTestCase;
 
 class TestCase extends BaseTestCase
 {
-    protected function getPackageProviders($app): array
-    {
-        return [LaravelSelectableServiceProvider::class];
-    }
 }

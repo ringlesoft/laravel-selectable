@@ -7,12 +7,14 @@ use RingleSoft\LaravelSelectable\Selectable;
 
 class SelectableTest extends TestCase
 {
-    public function test_collection_macros_render_default_options(): void
+    public function test_static_api_renders_default_options(): void
     {
-        $options = collect([
+        $items = collect([
             (object) ['id' => 1, 'name' => 'Ada'],
             (object) ['id' => 2, 'name' => 'Grace'],
-        ])->toSelectOptions();
+        ]);
+
+        $options = Selectable::collectionToSelectOptions($items);
 
         $this->assertSame('<option value="1">Ada</option><option value="2">Grace</option>', $options);
     }
