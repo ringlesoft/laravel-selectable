@@ -1,3 +1,18 @@
+## v1.0.6 (2026-07-20)
+### Security
+* Escape generated option content and attributes to prevent HTML injection.
+
+### Fixed
+* Correct selected/disabled matching for arrays of values, models, and arrays.
+* Normalize array, object, and grouped collection option data.
+
+### Improved
+* Support for Laravel 13
+* Add PHPUnit coverage, Composer test command, and Laravel compatibility CI.
+* Correct facade namespace casing, IDE helper definitions, and documentation examples.
+
+## v1.0.4 
+
 ## v1.0.4 (2025-03-22)
 ### Added
 * Support for IDs: Added support for adding `id` attributes to the selectable items using the `withId` method.
