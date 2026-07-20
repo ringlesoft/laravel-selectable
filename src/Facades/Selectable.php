@@ -1,6 +1,6 @@
 <?php
 
-namespace Ringlesoft\LaravelSelectable\Facades;
+namespace RingleSoft\LaravelSelectable\Facades;
 
 use Closure;
 use Illuminate\Support\Collection;
@@ -16,9 +16,9 @@ use Illuminate\Support\Facades\Facade;
  * @method static self withValue(string|Closure $value)
  * @method static self withSelected(mixed $selected)
  * @method static self withDisabled(mixed $disabled)
- * @method static self withDataAttribute(string|Closure $attribute, string|Closure $value)
+ * @method static self withDataAttribute(string|Closure $attribute, mixed $value)
  * @method static self withClass(string|array|Closure $class)
- * @method static self withId(Closure $id)
+ * @method static self withId(string|Closure $id)
  */
 class Selectable extends Facade
 {

@@ -4,10 +4,6 @@ namespace RingleSoft\LaravelSelectable;
 
 use Closure;
 use Illuminate\Support\Collection;
-use ReflectionException;
-use ReflectionFunction;
-use RingleSoft\LaravelSelectable\Exceptions\InvalidCallableException;
-use RingleSoft\LaravelSelectable\Utility\Logger;
 
 class Selectable
 {
@@ -18,410 +14,321 @@ class Selectable
     private mixed $_disabled = null;
     private array $_dataAttributes = [];
     private array $_classes = [];
-    private Closure|null $_id;
+    private string|Closure|null $_id = null;
 
-    /**
-     * @param Collection $collection
-     * @param string|Closure|null $label
-     * @param string|Closure|null $value
-     * @param mixed|null $selected
-     * @param mixed|null $disabled
-     * @param Closure|null $id
-     */
-    public function __construct(Collection $collection, string|Closure|null $label = null, string|Closure|null $value = null, mixed $selected = null, mixed $disabled = null, Closure|null $id = null)
-    {
+    public function __construct(
+        Collection $collection,
+        string|Closure|null $label = null,
+        string|Closure|null $value = null,
+        mixed $selected = null,
+        mixed $disabled = null,
+        string|Closure|null $id = null,
+    ) {
         $this->_collection = $collection;
         $this->_label = $label ?? 'name';
         $this->_value = $value ?? 'id';
-        $this->_selected = $selected ?? null;
-        $this->_disabled = $disabled ?? null;
-        $this->_id = $id ?? null;
+        $this->_selected = $selected;
+        $this->_disabled = $disabled;
+        $this->_id = $id;
     }
 
-
     /**
-     * Check if the item should be selected
-     * @param object $item
-     * @param int|string|null $index
-     * @return bool
+     * Resolve a configured accessor against objects, arrays, and scalar collections.
      */
+    private function resolveAccessor(string|Closure $accessor, mixed $item, int|string|null $index, mixed $default = null): mixed
+    {
+        if ($accessor instanceof Closure) {
+            return $accessor($item, $index);
+        }
+
+        if (is_array($item) || is_object($item)) {
+            return data_get($item, $accessor, $default);
+        }
+
+        return $default;
+    }
+
+    private function optionValue(mixed $item, int|string|null $index): mixed
+    {
+        if ($this->_value instanceof Closure) {
+            return $this->resolveAccessor($this->_value, $item, $index);
+        }
+
+        if (is_array($item)) {
+            return $this->resolveAccessor($this->_value, $item, $index, reset($item));
+        }
+
+        if (is_object($item)) {
+            return $this->resolveAccessor($this->_value, $item, $index, '');
+        }
+
+        return is_string($index) && is_string($item) ? $index : $item;
+    }
+
+    private function optionLabel(mixed $item, int|string|null $index): mixed
+    {
+        if ($this->_label instanceof Closure) {
+            return $this->resolveAccessor($this->_label, $item, $index);
+        }
+
+        if (is_array($item)) {
+            return $this->resolveAccessor($this->_label, $item, $index, reset($item));
+        }
+
+        if (is_object($item)) {
+            return $this->resolveAccessor($this->_label, $item, $index, 'N/A');
+        }
+
+        return $item;
+    }
+
+    private function matches(mixed $configured, mixed $item, int|string|null $index): bool
+    {
+        if ($configured === null) {
+            return false;
+        }
+
+        if ($configured instanceof Closure) {
+            return (bool) $configured($item, $index);
+        }
+
+        $optionValue = $this->optionValue($item, $index);
+        $candidates = $configured instanceof Collection ? $configured->all() : (is_array($configured) ? $configured : [$configured]);
+
+        foreach ($candidates as $candidate) {
+            $candidateValue = (is_array($candidate) || is_object($candidate))
+                ? $this->optionValue($candidate, null)
+                : $candidate;
+
+            if ((string) $candidateValue === (string) $optionValue) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function _shouldSelect(mixed $item, int|string|null $index = null): bool
     {
-        if ($this->_selected instanceof Closure) {
-            return (bool)call_user_func($this->_selected, $item, $index);
-        }
-
-        if ($this->_value instanceof Closure) {
-            $optionValue = call_user_func($this->_value, $item, $index);
-        } else {
-            $optionValue = (is_object($item) ? ($item->{$this->_value} ?? "") : $item);
-            if (is_array($item)) {
-                $optionValue = $item[$this->_value] ?? reset($item);
-            }
-        }
-        if (is_object($this->_selected)) {
-            return ((string)$this->_selected->{$this->_value} === (string)$optionValue);
-        }
-
-        if (is_array($this->_selected)) {
-            foreach ($this->_selected as $selectedItem) {
-                if (is_object($selectedItem)) {
-                    return ((string)$selectedItem->{$this->_value} === (string)$optionValue);
-                }
-                if (is_array($selectedItem)) {
-                    return (array_key_exists($this->_value, $selectedItem) && (string)$selectedItem[$this->_value] === (string)$optionValue);
-                }
-                if ((string)$selectedItem === (string)$optionValue) {
-                    return true;
-                }
-            }
-        } else if ((string)$this->_selected === (string)$optionValue) {
-            return true;
-        }
-        return false;
+        return $this->matches($this->_selected, $item, $index);
     }
 
-    /**
-     * Check if the item should be disabled
-     * @param mixed $item
-     * @param int|string|null $index
-     * @return bool
-     */
     private function _shouldDisable(mixed $item, int|string|null $index = null): bool
     {
-        if ($this->_disabled instanceof Closure) {
-            return (bool)call_user_func($this->_disabled, $item, $index);
-        }
-
-        if ($this->_value instanceof Closure) {
-            $lineValue = call_user_func($this->_value, $item, $index);
-        } else {
-            $lineValue = (is_object($item) ? ($item->{$this->_value} ?? "") : $item);
-            if (is_array($item)) {
-                $lineValue = $item[$this->_value] ?? reset($item);
-            }
-        }
-
-        if (is_object($this->_disabled)) {
-            return ((string)$this->_disabled->{$this->_value} === (string)$lineValue);
-        }
-
-        if (is_array($this->_disabled)) {
-            foreach ($this->_disabled as $disabledItem) {
-                if (is_object($disabledItem)) {
-                    return ((string)$disabledItem->{$this->_value} === (string)$lineValue);
-                }
-                if (is_array($disabledItem)) {
-                    return (array_key_exists($this->_value, $disabledItem) && (string)$disabledItem[$this->_value] === (string)$lineValue);
-                }
-                if ((string)$disabledItem === (string)$lineValue) {
-                    return true;
-                }
-            }
-        } else if ((string)$this->_disabled === (string)$lineValue) {
-            return true;
-        }
-        return false;
+        return $this->matches($this->_disabled, $item, $index);
     }
 
-    /**
-     * Prepare data attributes
-     * @param mixed $item
-     * @param int|null $index
-     * @return array
-     */
-    private function _getDataAttributes(mixed $item, int|null $index = null): array
+    private function _getDataAttributes(mixed $item, int|string|null $index = null): array
     {
         $dataAttributes = [];
-        if (count($this->_dataAttributes) > 0) {
-            foreach ($this->_dataAttributes as $attributeItem) {
-                $attribute = $attributeItem['attribute'];
-                $value = $attributeItem['value'];
-                $index = (($attribute instanceof Closure) ? $attribute($item, $index) : $attribute);
-                $dataAttributes[(string)$index] = ($value instanceof Closure) ? $value($item, $index) : ($item->{$value} ?? '');
-            }
+
+        foreach ($this->_dataAttributes as $attributeItem) {
+            $attribute = $attributeItem['attribute'] instanceof Closure
+                ? $this->resolveAccessor($attributeItem['attribute'], $item, $index)
+                : $attributeItem['attribute'];
+            $value = $attributeItem['value'] instanceof Closure
+                ? $this->resolveAccessor($attributeItem['value'], $item, $index)
+                : (is_string($attributeItem['value'])
+                    ? $this->resolveAccessor($attributeItem['value'], $item, $index, '')
+                    : $attributeItem['value']);
+
+            $dataAttributes[$this->dataAttributeName($attribute)] = $value;
         }
+
         return $dataAttributes;
     }
 
-    /**
-     * Generate select options from a Collection instance
-     * @param Collection $collection
-     * @param int $lastIndex
-     * @return string
-     */
-    private function _generateOptions(Collection $collection, int $lastIndex = 0): string
+    private function dataAttributeName(mixed $attribute): string
     {
-        $html = "";
-        foreach ($collection as $index => $item) {
-            if (($item instanceof Collection)) { // Grouped options
-                $html .= "<optgroup label=\"{$index}\">";
-                $html .= $this->_generateOptions($item);
-                $html .= "</optgroup>";
-            } else {
-                if ($this->_label instanceof Closure) {
-                    $optionLabel = call_user_func($this->_label, $item, $index);
-                } else {
-                    $optionLabel = is_object($item) ? ($item->{$this->_label} ?? "N/A") : ($item);
-                    if (is_array($item)) {
-                        $optionLabel = $item[$this->_label] ?? array_keys($item)[0];
-                    }
-                }
-                if ($this->_value instanceof Closure) {
-                    $optionValue = call_user_func($this->_value, $item, $index);
-                } else {
-                    $optionValue = is_object($item) ? ($item->{$this->_value} ?? "") : $item;
-                    if (is_array($item)) {
-                        $optionValue = $item[$this->_value] ?? reset($item);
-                    }
-                    if (is_string($index) && is_string($item)) {
-                        $optionValue = $index;
-                    }
-                }
-                // Prepare Option
-                $html .= "<option value=\"{$optionValue}\"";
-                if ($this->_id instanceof Closure) {
-                    $html .= " id=\"" . ((string)call_user_func($this->_id, $item, $index)) . "\"";
-                }
-                if ($this->_shouldSelect($item, $index)) {
-                    $html .= " selected";
-                }
-                if ($this->_shouldDisable($item, $index)) {
-                    $html .= " disabled";
-                }
-                if (count($this->_dataAttributes) > 0) {
-                    foreach ($this->_getDataAttributes($item, $index) as $key => $value) {
-                        $html .= " data-{$key}=\"{$value}\"";
-                    }
-                }
-                if (count($this->_classes) > 0) {
-                    $html .= " class=\"";
-                    foreach ($this->_classes as $class) {
-                        $html .= (($class instanceof Closure) ? ((string)$class($item, $index)) : $class) . " ";
-                    }
-                    $html = rtrim($html) . "\"";
-                }
-                $html .= " >{$optionLabel}</option>";
-            }
+        $attribute = preg_replace('/[^A-Za-z0-9_.:-]+/', '-', (string) $attribute) ?? '';
+        $attribute = trim($attribute, '-');
+
+        return $attribute === '' ? 'value' : $attribute;
+    }
+
+    private function optionClasses(mixed $item, int|string|null $index): array
+    {
+        $classes = [];
+
+        foreach ($this->_classes as $class) {
+            $resolved = $class instanceof Closure ? $class($item, $index) : $class;
+            $classes = [...$classes, ...preg_split('/\s+/', trim((string) $resolved), -1, PREG_SPLIT_NO_EMPTY)];
         }
+
+        return $classes;
+    }
+
+    /**
+     * This representation is shared by HTML and API-oriented consumers.
+     */
+    private function optionFor(mixed $item, int|string|null $index): array
+    {
+        return [
+            'value' => $this->optionValue($item, $index),
+            'label' => $this->optionLabel($item, $index),
+            'isSelected' => $this->_shouldSelect($item, $index),
+            'isDisabled' => $this->_shouldDisable($item, $index),
+            'data' => $this->_getDataAttributes($item, $index),
+            'classes' => $this->optionClasses($item, $index),
+            'id' => $this->_id instanceof Closure ? $this->_id($item, $index) : $this->_id,
+        ];
+    }
+
+    private function escape(mixed $value): string
+    {
+        return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+
+    private function _generateOptions(Collection $collection): string
+    {
+        $html = '';
+
+        foreach ($collection as $index => $item) {
+            if ($item instanceof Collection) {
+                $html .= '<optgroup label="' . $this->escape($index) . '">';
+                $html .= $this->_generateOptions($item);
+                $html .= '</optgroup>';
+
+                continue;
+            }
+
+            $option = $this->optionFor($item, $index);
+            $attributes = ['value="' . $this->escape($option['value']) . '"'];
+
+            if ($option['id'] !== null) {
+                $attributes[] = 'id="' . $this->escape($option['id']) . '"';
+            }
+            if ($option['isSelected']) {
+                $attributes[] = 'selected';
+            }
+            if ($option['isDisabled']) {
+                $attributes[] = 'disabled';
+            }
+            foreach ($option['data'] as $key => $value) {
+                $attributes[] = 'data-' . $this->escape($key) . '="' . $this->escape($value) . '"';
+            }
+            if ($option['classes'] !== []) {
+                $attributes[] = 'class="' . $this->escape(implode(' ', $option['classes'])) . '"';
+            }
+
+            $html .= '<option ' . implode(' ', $attributes) . '>' . $this->escape($option['label']) . '</option>';
+        }
+
         return $html;
     }
 
-    /**
-     * Generate select options from a Collection instance
-     * @param Collection $collection the collection instance to be used
-     * @param string|Closure(mixed, int):string|null $label the field to be used as the label for the option (default is 'name')
-     * @param string|Closure(mixed, int):string|null $value the field to be used as value of the option (default is 'id')
-     * @param mixed|Closure(mixed, int):mixed|object|null $selected selected value/values
-     * @param mixed|null $disabled
-     * @return string
-     */
     public static function collectionToSelectOptions(
-        Collection          $collection,
+        Collection $collection,
         string|Closure|null $label = null,
         string|Closure|null $value = null,
-        mixed               $selected = null,
-        mixed               $disabled = null,
-    ): string
-    {
+        mixed $selected = null,
+        mixed $disabled = null,
+    ): string {
         return (new self($collection, $label, $value, $selected, $disabled))->toSelectOptions();
     }
 
-    /**
-     * Create Selectable instance from a collection instance
-     * @param Collection $collection
-     * @return self
-     */
     public static function fromCollection(Collection $collection): self
     {
         return new self($collection);
     }
 
-    /**
-     * Generate select options from this instance
-     * @return string
-     */
     public function toSelectOptions(): string
     {
         return $this->_generateOptions($this->_collection);
     }
 
-    /**
-     * Return a collection of selectable items
-     * @return Collection
-     */
     public function toSelectItems(): Collection
     {
-        return $this->_collection->map(function ($item, $index) {
-            if ($this->_label instanceof Closure) {
-                $optionLabel = call_user_func($this->_label, $item, $index);
-            } else {
-                $optionLabel = is_object($item) ? ($item->{$this->_label} ?? "N/A") : ($item);
+        return $this->_collection->map(function (mixed $item, int|string $index): mixed {
+            if ($item instanceof Collection) {
+                return $this->itemsFor($item);
             }
-            if ($this->_value instanceof Closure) {
-                $optionValue = call_user_func($this->_value, $item, $index);
-            } else {
-                $optionValue = is_object($item) ? ($item->{$this->_value} ?? "") : $item;
-                if (is_string($index) && is_string($item)) {
-                    $optionValue = $index;
-                }
-            }
-            return [
-                'value' => $optionValue,
-                'label' => $optionLabel,
-                'isSelected' => $this->_shouldSelect($item, $index),
-                'isDisabled' => $this->_shouldDisable($item, $index),
-                'data' => $this->_getDataAttributes($item, $index),
-                'classes' => $this->_classes
-            ];
+
+            return $this->optionFor($item, $index);
         });
     }
 
-    /**
-     * Specify the label for the selectable items
-     * @param string|Closure(mixed, int):string $label name of the field to be used as label
-     * @return $this
-     */
+    private function itemsFor(Collection $collection): Collection
+    {
+        return $collection->map(function (mixed $item, int|string $index): mixed {
+            return $item instanceof Collection ? $this->itemsFor($item) : $this->optionFor($item, $index);
+        });
+    }
+
     public function withLabel(string|Closure $label): self
     {
         $this->_label = $label;
+
         return $this;
     }
 
-    /**
-     * Specify the value for the selectable items
-     * @param string|Closure(mixed, int):string $value name of the field to be used as value
-     * @return $this
-     */
     public function withValue(string|Closure $value): self
     {
         $this->_value = $value;
+
         return $this;
     }
 
-    /**
-     * Specify the selected values for the selectable items
-     * @param mixed|Closure(mixed, int|string|null): bool $selected
-     * @return $this
-     */
     public function withSelected(mixed $selected): self
     {
         $this->_selected = $selected;
+
         return $this;
     }
 
-    /**
-     * Specify the disabled values for the selectable items
-     * @param mixed $disabled
-     * @return $this
-     */
     public function withDisabled(mixed $disabled): self
     {
         $this->_disabled = $disabled;
+
         return $this;
     }
 
-    /**
-     * Specify a data attribute for the selectable items
-     * @param string|Closure(mixed, int):string $attribute Data attribute name
-     * * @param string|Closure(mixed, int):mixed $value Data attribute value
-     * * @return $this
-     */
-    public function withDataAttribute(string|Closure $attribute, string|Closure $value): self
+    public function withDataAttribute(string|Closure $attribute, mixed $value): self
     {
         $this->_dataAttributes[] = ['attribute' => $attribute, 'value' => $value];
+
         return $this;
     }
 
-    /**
-     * Set CSS classes to be added to every select option
-     * @param string|array<string>|Closure(object $item, int $index):string $class CSS class(es) to be added to every select option. You can pass a closure that returns a string.
-     * @return $this
-     */
     public function withClass(string|array|Closure $class): self
     {
-        $classes = is_array($class) ? $class : explode(' ', $class);
+        $classes = $class instanceof Closure ? [$class] : (is_array($class) ? $class : explode(' ', $class));
         $this->_classes = [...$this->_classes, ...$classes];
+
         return $this;
     }
 
-    /**
-     * Set the ID of every select option
-     * @param Closure(object $item, int $index):string $id A closure that returns the ID of every select option
-     * @return $this
-     */
-    public function withId(Closure $id): self
+    public function withId(string|Closure $id): self
     {
         $this->_id = $id;
+
         return $this;
     }
 
-    /**
-     * Convert a Selectable instance back to a Collection instance
-     * @return Collection
-     */
     public function toCollection(): Collection
     {
         return $this->_collection;
     }
 
-    /**
-     * Call a method on the collection
-     * @param string $name
-     * @param array $arguments
-     * @return $this
-     */
-    public function __call(string $name, array $arguments)
+    public function __call(string $name, array $arguments): self
     {
         $allowedMethods = [
-            'groupBy', 'add', 'zip', 'unique', 'range', 'merge',
-            'diff', 'diffUsing', 'diffAssoc', 'diffAssocUsing',
-            'diffKeys', 'diffKeysUsing', 'forget', 'merge', 'mergeRecursive', 'combine',
-            'union', 'nth', 'only', 'select', 'prepend', 'push', 'concat', 'put', 'random',
-            'replace', 'replaceRecursive', 'reverse', 'shuffle', 'sliding', 'skip',
-            'skipUntil', 'skipWhile', 'slice', 'split', 'splitIn', 'chunk', 'chunkWhile',
-            'sort', 'sortDesc', 'sortBy', 'sortByMany', 'sortByDesc', 'sortKeys',
-            'sortKeysDesc', 'sortKeysUsing', 'splice', 'take', 'takeUntil', 'takeWhile',
-            'transform', 'dot', 'undot', 'unique', 'values', 'zip', 'pad', 'getIterator',
-            'countBy', 'add', 'toBase',
+            'groupBy', 'add', 'zip', 'unique', 'range', 'merge', 'diff', 'diffUsing', 'diffAssoc',
+            'diffAssocUsing', 'diffKeys', 'diffKeysUsing', 'forget', 'mergeRecursive', 'combine', 'union',
+            'nth', 'only', 'select', 'prepend', 'push', 'concat', 'put', 'random', 'replace',
+            'replaceRecursive', 'reverse', 'shuffle', 'sliding', 'skip', 'skipUntil', 'skipWhile', 'slice',
+            'split', 'splitIn', 'chunk', 'chunkWhile', 'sort', 'sortDesc', 'sortBy', 'sortByMany',
+            'sortByDesc', 'sortKeys', 'sortKeysDesc', 'sortKeysUsing', 'splice', 'take', 'takeUntil',
+            'takeWhile', 'transform', 'dot', 'undot', 'values', 'pad', 'getIterator', 'countBy', 'toBase',
         ];
-        if (in_array($name, $allowedMethods) && method_exists($this->_collection, $name)) {
-            $res = $this->_collection->{$name}(...$arguments);
-            if ($res instanceof Collection) {
-                $this->_collection = $res;
+
+        if (in_array($name, $allowedMethods, true) && method_exists($this->_collection, $name)) {
+            $result = $this->_collection->{$name}(...$arguments);
+            if ($result instanceof Collection) {
+                $this->_collection = $result;
             }
         }
+
         return $this;
     }
-
-
-    /**
-     * Experimental (Currently not used)
-     * Internal method to validate the user provided callable.
-     * @param callable $callable
-     * @param string $returnType
-     * @param null $argumentName
-     * @return void
-     * @throws InvalidCallableException
-     */
-    private function validateCallable(callable $callable, string $returnType = 'string', $argumentName = null): void
-    {
-        try {
-            $reflection = new ReflectionFunction($callable);
-        } catch (ReflectionException $e) {
-            Logger::error($e->getMessage());
-            return;
-        }
-        $parameters = $reflection->getParameters();
-        if (count($parameters) > 2) {
-            throw new InvalidCallableException("The callable {$argumentName} must accept maximum of 2 parameters.");
-        }
-        if (count($parameters) === 2  && $parameters[1]->hasType() && $parameters[1]->getType()?->getName() !== 'int') {
-            throw new InvalidCallableException("The second parameter of the callable {$argumentName} must be of type `int`.");
-        }
-        if ($reflection->hasReturnType() && $reflection->getReturnType()?->getName() !== $returnType) {
-            throw new InvalidCallableException("The callable {$argumentName} must return a string.");
-        }
-    }
-
 }
